@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <title>Cendere — Tile İnceleyici (dev aracı)</title>
+  <style>
+    body { background: #222; color: #eee; font: 12px monospace; margin: 12px; }
+    canvas { image-rendering: pixelated; background: #555; }
+    a { color: #8cf; margin-right: 10px; }
+    #info { position: fixed; top: 8px; right: 12px; background: #000c; padding: 6px 10px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div>
+    <a href="?s=Backgrounds/Tilesets/TilesetNature.png">Nature</a>
+    <a href="?s=Backgrounds/Tilesets/TilesetFloor.png">Floor</a>
+    <a href="?s=Backgrounds/Tilesets/TilesetWater.png">Water</a>
+    <a href="?s=Backgrounds/Tilesets/TilesetField.png">Field</a>
+    <a href="?s=Actor/Characters/BlueNinja/SeparateAnim/Walk.png">NinjaWalk</a>
+  </div>
+  <div id="info">-</div>
+  <canvas id="c"></canvas>
+  <script>
+    const Z = 4, T = 16;
+    const sheet = new URLSearchParams(location.search).get('s') || 'Backgrounds/Tilesets/TilesetNature.png';
+    const img = new Image();
+    img.src = 'pack/' + sheet;
+    img.onload = () => {
+      const c = document.getElementById('c');
+      c.width = img.width * Z; c.height = img.height * Z;
+      const x = c.getContext('2d');
+      x.imageSmoothingEnabled = false;
+      x.drawImage(img, 0, 0, c.width, c.height);
+      x.strokeStyle = 'rgba(255,0,0,0.4)'; x.fillStyle = '#ff0'; x.font = '10px monospace';
+      for (let gx = 0; gx <= img.width; gx += T) {
+        x.beginPath(); x.moveTo(gx * Z, 0); x.lineTo(gx * Z, c.height); x.stroke();
+        if (gx % 32 === 0) x.fillText(gx, gx * Z + 2, 10);
+      }
+      for (let gy = 0; gy <= img.height; gy += T) {
+        x.beginPath(); x.moveTo(0, gy * Z); x.lineTo(c.width, gy * Z); x.stroke();
+        if (gy % 32 === 0) x.fillText(gy, 2, gy * Z + 12);
+      }
+      c.onmousemove = (e) => {
+        const r = c.getBoundingClientRect();
+        const mx = Math.floor((e.clientX - r.left) / Z), my = Math.floor((e.clientY - r.top) / Z);
+        document.getElementById('info').textContent =
+          `px:(${mx},${my}) tile:(${Math.floor(mx / T) * T},${Math.floor(my / T) * T})`;
+      };
+      c.onclick = (e) => {
+        const r = c.getBoundingClientRect();
+        const mx = Math.floor((e.clientX - r.left) / Z), my = Math.floor((e.clientY - r.top) / Z);
+        console.log(`[TILE] px:(${mx},${my}) tile:(${Math.floor(mx / T) * T},${Math.floor(my / T) * T})`);
+        x.fillStyle = '#f0f'; x.fillRect(mx * Z - 2, my * Z - 2, 5, 5);
+      };
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#1c1936" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <title>Cendere</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1c2c;
+      touch-action: none; } /* pinch-zoom UI'yı küçültmesin */
+    #game {
+      display: block; width: 100%; height: 100%;
+      touch-action: none; user-select: none; -webkit-user-select: none;
+      image-rendering: pixelated;
+    }
+    #hud {
+      position: fixed; top: env(safe-area-inset-top, 4px); left: 8px;
+      color: #fff; font: 12px/1.4 monospace; text-shadow: 0 1px 2px #000;
+      pointer-events: none; z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="hud"></div>
+  <script type="module" src="/src/app/main.js"></script>
+</body>
+</html>

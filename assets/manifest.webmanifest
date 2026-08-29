@@ -1,0 +1,14 @@
+{
+  "name": "Cendere",
+  "short_name": "Cendere",
+  "description": "Son kalan kazanır. Cendere daralıyor. 8 dakikalık mobil MMO-RPG battle royale.",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#12101f",
+  "theme_color": "#1c1936",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

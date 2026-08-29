@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- Dev aracı: PWA ikonu üretir (512x512). Konsept: kızıl cendere çemberi içinde ninja. -->
+<meta charset="utf-8" />
+<canvas id="c" width="512" height="512"></canvas>
+<script>
+  const c = document.getElementById('c');
+  const x = c.getContext('2d');
+  x.imageSmoothingEnabled = false;
+
+  // Zemin: düz koyu gece (PNG küçük kalsın diye degrade yok)
+  x.fillStyle = '#1c1936';
+  x.fillRect(0, 0, 512, 512);
+
+  // Kızıl cendere halkası
+  x.strokeStyle = '#ff5252';
+  x.lineWidth = 26;
+  x.beginPath();
+  x.arc(256, 256, 196, 0, Math.PI * 2);
+  x.stroke();
+  // Altın GZ halkası (kesikli)
+  x.strokeStyle = '#ffd75e';
+  x.lineWidth = 10;
+  x.setLineDash([28, 18]);
+  x.beginPath();
+  x.arc(256, 256, 148, 0, Math.PI * 2);
+  x.stroke();
+  x.setLineDash([]);
+
+  const img = new Image();
+  img.src = '../assets/pack/Actor/Characters/BlueNinja/SeparateAnim/Idle.png';
+  img.onload = () => {
+    // İlk kare (aşağı bakan ninja) 16x16 → 14x büyüt, merkeze
+    x.drawImage(img, 0, 0, 16, 16, 256 - 112, 256 - 118, 224, 224);
+    document.title = 'HAZIR';
+    window.__icon = c.toDataURL('image/png');
+  };
+</script>
