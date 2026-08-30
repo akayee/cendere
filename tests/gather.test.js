@@ -99,12 +99,14 @@ describe('gatherSystem — kanal + kilit', () => {
 
   it('kilitli kaynağa ikinci kişi kanal açamaz', () => {
     const { world, player, cx, cy } = setup();
+    player.combat.auto = { ...player.combat.auto, damage: 0 }; // PvP gürültüsü olmasın
     const res = createResource(world, 'wood', cx + 10, cy);
     player.input.wantGather = true;
     step(world);
     expect(res.lockedBy).toBe(player.id);
 
     const rival = createPlayer(world, 'cengaver', cx + 16, cy);
+    rival.combat.auto = { ...rival.combat.auto, damage: 0 };
     rival.input.wantGather = true;
     step(world);
     // Rakip kaynağı alamaz; (canı tam olduğundan yoğunlaşma da başlamaz)
@@ -169,22 +171,25 @@ describe('gatherSystem — kanal + kilit', () => {
     expect(player.combat.auto.damage).toBeCloseTo(baseDmg * ECON.WOOD_DMG_MUL, 5);
   });
 
-  it('Vahşi Bölge: XP ×2 ve kaynak verimi ×2', () => {
+  it('kendi GZ\'nde verim ×1, dışarıda XP ve verim ×2', () => {
     const { world, player, cx, cy } = setup();
-    const wildX = cx + (ZONE.GZ_RADIUS_TILES + 8) * MAP.TILE;
-    expect(isWild(world, wildX, cy)).toBe(true);
-    expect(isWild(world, cx, cy)).toBe(false);
-
-    // Vahşi'de kaynak: 2 birim verir
-    player.transform.x = wildX;
-    player.transform.prevX = wildX;
-    createResource(world, 'wood', wildX + 10, cy);
-    player.input.wantGather = true;
+    // Kendi üssü tam altında: içeride toplarsa ×1
+    world.gzones.push({ x: cx, y: cy, r: ZONE.PERSONAL_R, ownerId: player.id });
+    expect(isWild(world, player)).toBe(false);
+    createResource(world, 'wood', cx + 10, cy);
     step(world);
     for (let i = 0; i < TICKS(ECON.GATHER_TIME); i++) step(world);
-    expect(player.gather.wood).toBe(ZONE.WILD_YIELD_MULT);
+    expect(player.gather.wood).toBe(1);
 
-    // Vahşi'de mob: XP ×2
+    // Üs dışında: verim ×2
+    const wildX = cx + 300;
+    player.transform.x = player.transform.prevX = wildX;
+    expect(isWild(world, player)).toBe(true);
+    createResource(world, 'wood', wildX + 10, cy);
+    for (let i = 0; i < TICKS(ECON.GATHER_TIME) + 60; i++) step(world);
+    expect(player.gather.wood).toBe(1 + ZONE.WILD_YIELD_MULT);
+
+    // Üs dışında mob: XP ×2
     const events = [];
     world.bus.on('xp.gained', (e) => events.push(e));
     const mob = createMob(world, 'slime', wildX, cy + 10);

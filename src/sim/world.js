@@ -4,7 +4,7 @@ import { createBus } from '../core/eventBus.js';
 import { mulberry32 } from '../core/rng.js';
 import { createSpatialHash } from '../core/spatialHash.js';
 import { PHYS } from '../data/balance.js';
-import { cendereRadiusAt, gzRadiusAt } from '../data/phases.js';
+import { cendereRadiusAt } from '../data/phases.js';
 import { generateMap } from './map.js';
 
 export function createWorld(seed) {
@@ -29,6 +29,8 @@ export function createWorld(seed) {
     areas: [],
     /** mob kampları: {x, y, tier, memberIds} — üyesi yaşayan kamp "canlı"dır */
     camps: [],
+    /** kişisel GZ daireleri: {x, y, r, ownerId} — sahibi ölünce silinir */
+    gzones: [],
     /** katı statik gövdeler için geniş faz */
     staticHash: createSpatialHash(PHYS.CELL),
     map: null,
@@ -39,7 +41,7 @@ export function createWorld(seed) {
       phaseIndex: 0,
       phase: 'hazirlik',
       cendereR: 99999,
-      gzR: 0,
+      gzScale: 1, // kişisel GZ'lerin erime çarpanı (Sıkışma'da 1→0)
       damageAcc: 0,
       over: false,
     },
@@ -49,7 +51,6 @@ export function createWorld(seed) {
 
   world.map = generateMap(rng);
   world.match.cendereR = cendereRadiusAt(0);
-  world.match.gzR = gzRadiusAt(0);
 
   // Statik gövdeleri hash'e yerleştir
   for (const body of world.map.statics) {

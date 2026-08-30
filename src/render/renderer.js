@@ -8,7 +8,7 @@ import { PROPS, RESOURCE_PROPS } from './atlasData.js';
 import { drawZones } from './zoneOverlay.js';
 import { lerp, distSq } from '../core/vec2.js';
 import { ECON } from '../data/balance.js';
-import { yieldMultiplier } from '../sim/zone.js';
+import { gzOf } from '../sim/zone.js';
 
 export function createRenderer(canvas, images, map, effects) {
   const ctx = canvas.getContext('2d');
@@ -100,7 +100,11 @@ export function createRenderer(canvas, images, map, effects) {
           def.h + 3
         );
 
-        const amount = yieldMultiplier(world, rt.x, rt.y);
+        // Verim etiketi: kaynak SENİN üssünün içindeyse ×1, dışarıda ×2
+        const myGz = gzOf(world, player);
+        const rr = myGz ? myGz.r * world.match.gzScale : 0;
+        const inOwn = myGz && rr > 2 && distSq(rt.x, rt.y, myGz.x, myGz.y) <= rr * rr;
+        const amount = inOwn ? 1 : 2;
         ctx.font = 'bold 7px monospace';
         ctx.textAlign = 'center';
         ctx.strokeStyle = '#000';

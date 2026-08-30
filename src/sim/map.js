@@ -3,7 +3,7 @@
 
 import { rangeInt, range, pick } from '../core/rng.js';
 import { distSq } from '../core/vec2.js';
-import { MAP } from '../data/balance.js';
+import { MAP, ZONE } from '../data/balance.js';
 
 export function generateMap(rng) {
   const T = MAP.TILE;
@@ -28,8 +28,11 @@ export function generateMap(rng) {
     decors: [],
   };
 
-  const spawnClearPx = MAP.SPAWN_CLEAR * T;
-  const isInSpawn = (x, y, pad) => distSq(x, y, cx, cy) < (spawnClearPx + pad) ** 2;
+  // Kişisel GZ halka bandı engelsiz kalır (üsler ve aralarındaki "yol" temiz)
+  const isInSpawn = (x, y, pad) => {
+    const d = Math.sqrt(distSq(x, y, cx, cy));
+    return Math.abs(d - ZONE.RING_RADIUS) < MAP.GZ_RING_CLEAR + pad;
+  };
 
   // --- Toprak yamaları (görsel çeşitlilik; çarpışmasız)
   for (let i = 0; i < MAP.DIRT_PATCHES; i++) {

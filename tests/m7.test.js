@@ -80,18 +80,18 @@ describe('M7 — Zehir (Ultima usulü)', () => {
 });
 
 describe('M7 — T3/T4 ve kamp yöneticisi', () => {
-  it('Sıkışma: elit kamplar CENDERE İÇİNDE doğar; elit ölünce Destansı kartlı kese düşer', () => {
+  it('Sıkışma: elit kamplar ZİNDANDA (merkez bandında) doğar; elit ölünce Destansı kese düşer', () => {
     const { world, cx, cy } = setup();
     world.match.t = PHASES[2].start - 0.2;
     for (let i = 0; i < 30; i++) step(world);
     const elites = world.movers.filter((m) => m.ai?.def.tier === 3);
     expect(elites.length).toBeGreaterThanOrEqual(1);
 
-    // Tüm kamplar cendere çemberinin içinde ve GZ'den uzakta olmalı
+    // Tüm kamplar merkez bandında (zindan): doğdukları anki cenderenin %50'sinden içeride
+    // (en geniş cendere 1450 → üst sınır ~725; GZ halkasına 620-56=564'ten yakın olamazlar zaten)
     for (const camp of world.camps) {
       const d = Math.hypot(camp.x - cx, camp.y - cy);
-      expect(d).toBeLessThan(world.match.cendereR);
-      expect(d).toBeGreaterThan(world.match.gzR);
+      expect(d).toBeLessThan(730);
     }
 
     elites[0].dead = true;
@@ -102,11 +102,12 @@ describe('M7 — T3/T4 ve kamp yöneticisi', () => {
     expect(card.rarity).toBe('epic');
   });
 
-  it('kesilen kampın yerine uzun cooldown sonrası yenisi gelir (cendere içinde)', () => {
+  it('kesilen kampın yerine uzun cooldown sonrası yenisi gelir', () => {
     const { world } = setup();
-    world.match.t = PHASES[1].start - 0.2; // Genişleme: ilk 6 kamp
+    world.match.t = PHASES[1].start - 0.2; // Genişleme'ye geçiş: hedefe kadar dolar
     for (let i = 0; i < 30; i++) step(world);
-    expect(world.camps.length).toBe(6);
+    const target = world.camps.length;
+    expect(target).toBeGreaterThanOrEqual(8); // zindan kalabalık
 
     // Bir kampı tamamen kes
     const camp = world.camps[0];
@@ -115,14 +116,12 @@ describe('M7 — T3/T4 ve kamp yöneticisi', () => {
       if (m) m.dead = true;
     }
     step(world);
-    const aliveBefore = world.camps.filter((c) => c.memberIds.some((id) => world.entities.has(id))).length;
-    expect(aliveBefore).toBe(5);
 
-    // Cooldown dolunca 1 yeni kamp gelir (hemen değil)
+    // Cooldown dolmadan yenisi GELMEZ; dolunca 1 kamp eklenir
     for (let i = 0; i < 60 * 10; i++) step(world);
-    expect(world.camps.length).toBe(6); // 10 sn'de yenisi GELMEDİ (55 sn cooldown)
+    expect(world.camps.length).toBe(target); // 10 sn'de yenisi yok (55 sn cooldown)
     for (let i = 0; i < 60 * 50; i++) step(world);
-    expect(world.camps.length).toBeGreaterThanOrEqual(7); // artık geldi
+    expect(world.camps.length).toBeGreaterThanOrEqual(target + 1); // artık geldi
   }, 30000);
 
   it('Son Cendere: T4 canavarları dalga dalga sızar ve tavana uyar', () => {

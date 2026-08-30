@@ -16,7 +16,7 @@ export const MAP = {
   LAKES: 4,
   DIRT_PATCHES: 10,
   BORDER: 2, // haritayı çevreleyen orman duvarı kalınlığı (tile)
-  SPAWN_CLEAR: 8, // merkez spawn çevresinde engelsiz yarıçap (tile)
+  GZ_RING_CLEAR: 70, // GZ halkası bandı (RING_RADIUS ± bu) engelsiz kalır (px)
 };
 
 export const PHYS = {
@@ -42,15 +42,8 @@ export const POISON = {
 };
 
 export const SPAWN = {
-  T1_COUNT: 30, // maç başı T1 mob sayısı
+  T1_COUNT: 30, // maç başı T1 mob sayısı (GZ'ler hariç her yerde)
   BOT_COUNT: 9, // maçı dolduran botlar (PLAN §10: koltuk doldurma)
-  MIN_DIST_FROM_SPAWN: 10, // tile — oyuncu doğuşuna bu kadar yakın mob doğmaz
-  DUMMY_COUNT: 4, // merkez (GZ kasabası) çevresindeki antrenman kuklaları
-  DUMMY_RING: 56, // kuklaların merkeze uzaklığı (dünya birimi)
-  GZ_MOBS: 7, // GZ içi PASİF mob (slime/mantar) — güvenli ama yavaş kasılma (PLAN §3/§4)
-  GZ_WOOD: 4, // GZ içi garanti kaynaklar (verim ×1 — Vahşi'nin yarısı)
-  GZ_ORE: 3,
-  GZ_HERB: 3,
 };
 
 export const XP = {
@@ -87,11 +80,15 @@ export const ECON = {
   FOCUS_HEAL: 4, // ...bu kadar can verir; hasar/hareket bozar
 };
 
+// KİŞİSEL GZ modeli: her oyuncunun (bot dahil) harita kenarında halka üzerinde
+// kendi küçük güvenli dairesi vardır. Merkez = ZİNDAN (yoğun kamplar).
 export const ZONE = {
-  GZ_RADIUS_TILES: 14, // GZ (kasaba) başlangıç yarıçapı — phases.js gz=224 ile eşit
-  WILD_XP_MULT: 2, // Vahşi Bölge: XP ×2
-  WILD_YIELD_MULT: 2, // Vahşi Bölge: kaynak verimi ×2
-  GZ_BUDGET: 120, // kişisel GZ süresi (sn) — içerideyken erir (10 dk'lık maça göre)
+  PERSONAL_R: 56, // kişisel GZ yarıçapı (küçük yuvarlak)
+  RING_RADIUS: 620, // GZ'lerin merkeze uzaklığı (haritanın çok dışında değil)
+  GZ_HEAL: 3, // kendi GZ'nde saniyede can dolumu ("gz can bassın")
+  WILD_XP_MULT: 2, // kendi GZ'n dışında her yer Vahşi: XP ×2
+  WILD_YIELD_MULT: 2, // ... kaynak verimi ×2
+  GZ_BUDGET: 120, // kişisel GZ süresi (sn) — içerideyken erir
   GZ_REFILL_RATIO: 3, // dışarıda geçen her 3 sn → 1 sn GZ hakkı
   EXILE_LIFT: 30, // Sürgün, bütçe bu seviyeye dolunca kalkar
   DAMAGE_TICK: 0.5, // cendere hasarının uygulanma aralığı (sn)

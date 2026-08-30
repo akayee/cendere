@@ -4,8 +4,7 @@
 import { MAP, ZONE, xpForLevel } from '../data/balance.js';
 import { PHASES, MATCH_END } from '../data/phases.js';
 import { createWorld } from '../sim/world.js';
-import { createPlayer } from '../sim/entity.js';
-import { spawnInitialMobs, spawnBots } from '../sim/spawn.js';
+import { spawnMatch } from '../sim/spawn.js';
 import { step } from '../sim/pipeline.js';
 import { isWild } from '../sim/zone.js';
 import { createKeyboardInput } from '../input/keyboardInput.js';
@@ -56,9 +55,7 @@ function startMatch(images, sfx, classId) {
   // --- Sim (seed URL'den gelebilir; restart yeni seed üretir — app katmanı, izinli)
   const seed = Number(params.get('s')) || MAP.SEED;
   const world = createWorld(seed);
-  const player = createPlayer(world, classId, world.map.widthPx / 2, world.map.heightPx / 2);
-  spawnInitialMobs(world);
-  spawnBots(world);
+  const player = spawnMatch(world, classId); // halkadaki kendi üssünde doğar
   const fastForward = Number(params.get('t')) || 0; // dev: maç saatini ileri sar
   if (fastForward > 0) world.match.t = fastForward;
 
@@ -212,10 +209,10 @@ function startMatch(images, sfx, classId) {
     sfx.play('phase');
   });
   world.bus.on('zone.leftGZ', (e) => {
-    if (e.id === player.id && world.match.gzR > 0) banner.show('GZ DIŞINDASIN — KORUMA YOK', '#ff9f43');
+    if (e.id === player.id) banner.show('ÜSSÜNDEN AYRILDIN — KORUMA YOK', '#ff9f43');
   });
   world.bus.on('zone.enteredGZ', (e) => {
-    if (e.id === player.id && !player.zone.exiled) banner.show('GZ — GÜVENDESİN', '#8cf58c');
+    if (e.id === player.id && !player.zone.exiled) banner.show('ÜSSÜNDESİN — GÜVENDE', '#8cf58c');
   });
   world.bus.on('zone.exiled', (e) => {
     if (e.id === player.id) banner.show('SÜRGÜN — GZ SENİ DIŞARI ATIYOR', '#ff6b6b');
@@ -293,12 +290,13 @@ function startMatch(images, sfx, classId) {
       contextButton.setMode(mode);
       potButton.setCount(player.gather.pots);
 
-      // Tehlike tonu: sınırda yürürken aç-kapa titremesin diye histerezisli
+      // Tehlike tonu: kendi üssünün dışındaysan (histerezisli — sınırda titremez)
       {
-        const d = Math.hypot(player.transform.x - world.map.widthPx / 2, player.transform.y - world.map.heightPx / 2);
-        const gzR = world.match.gzR;
-        if (!tintWild && (gzR <= 0 || d > gzR + 10)) tintWild = true;
-        else if (tintWild && gzR > 0 && d < gzR - 10) tintWild = false;
+        const gz = world.gzones.find((g) => g.ownerId === player.id);
+        const r = gz ? gz.r * world.match.gzScale : 0;
+        const d = gz ? Math.hypot(player.transform.x - gz.x, player.transform.y - gz.y) : Infinity;
+        if (!tintWild && (r <= 2 || d > r + 8)) tintWild = true;
+        else if (tintWild && r > 2 && d < r - 8) tintWild = false;
         dangerTint.set(tintWild);
       }
       minimap.draw(world, player);
@@ -314,7 +312,7 @@ function startMatch(images, sfx, classId) {
       hud.frame(
         player,
         xpForLevel(player.progress.level),
-        isWild(world, player.transform.x, player.transform.y),
+        isWild(world, player),
         {
           t: m.t,
           phaseName: PHASES[m.phaseIndex].name,

@@ -1,31 +1,56 @@
-// Bölge yardımcıları (M5): GZ artık maç durumundan okunur — Sıkışma'da erir,
-// Son Cendere'de tamamen kalkar (her yer Vahşi olur).
+// Bölge yardımcıları — KİŞİSEL GZ modeli:
+// Her oyuncunun (bot dahil) kendi küçük GZ dairesi vardır (world.gzones).
+// Koruma ve can dolumu YALNIZ kendi GZ'nde geçerlidir; başkasının GZ'si sana
+// hiçbir şey vermez. Kendi GZ'n dışındaki HER YER Vahşi'dir (×2). Sıkışma
+// evresinde tüm GZ'ler birlikte erir (match.gzScale 1→0).
 
 import { distSq } from '../core/vec2.js';
 import { ZONE } from '../data/balance.js';
 
-/** GZ içinde mi? (GZ kalmadıysa kimse içeride değildir) */
-export function isInGZ(world, x, y) {
-  const r = world.match.gzR;
-  if (r <= 0) return false;
-  return distSq(x, y, world.map.widthPx / 2, world.map.heightPx / 2) <= r * r;
+/** Bu entity'nin kendi GZ'si (yoksa null — moblar, sahipsizler) */
+export function gzOf(world, ent) {
+  return world.gzones.find((g) => g.ownerId === ent.id) ?? null;
 }
 
-/** GZ koruması geçerli mi? (içeride VE Sürgün değilse) — PvP filtresi (M6) */
+/** GZ'nin şu anki etkin yarıçapı (Sıkışma'da erir) */
+export function gzRadius(world, gz) {
+  return gz.r * world.match.gzScale;
+}
+
+/** Entity KENDİ GZ'sinin içinde mi? */
+export function isInOwnGZ(world, ent) {
+  const gz = gzOf(world, ent);
+  if (!gz) return false;
+  const r = gzRadius(world, gz);
+  if (r <= 2) return false;
+  return distSq(ent.transform.x, ent.transform.y, gz.x, gz.y) <= r * r;
+}
+
+/** GZ koruması: kendi GZ'nde VE Sürgün değilken (PvP + mob teması işlemez) */
 export function isProtected(world, ent) {
-  return !ent.zone?.exiled && isInGZ(world, ent.transform.x, ent.transform.y);
+  return !!ent.zone && !ent.zone.exiled && isInOwnGZ(world, ent);
 }
 
-export function isWild(world, x, y) {
-  return !isInGZ(world, x, y);
+/** Kendi GZ'n dışında her yer Vahşi'dir */
+export function isWild(world, ent) {
+  return !isInOwnGZ(world, ent);
 }
 
-export function xpMultiplier(world, x, y) {
-  return isWild(world, x, y) ? ZONE.WILD_XP_MULT : 1;
+export function xpMultiplier(world, ent) {
+  return isWild(world, ent) ? ZONE.WILD_XP_MULT : 1;
 }
 
-export function yieldMultiplier(world, x, y) {
-  return isWild(world, x, y) ? ZONE.WILD_YIELD_MULT : 1;
+export function yieldMultiplier(world, ent) {
+  return isWild(world, ent) ? ZONE.WILD_YIELD_MULT : 1;
+}
+
+/** Nokta HERHANGİ bir GZ'nin içinde mi? (mob doğumu bunlardan kaçınır) */
+export function isInAnyGZ(world, x, y, pad = 0) {
+  for (const g of world.gzones) {
+    const r = gzRadius(world, g) + pad;
+    if (distSq(x, y, g.x, g.y) <= r * r) return true;
+  }
+  return false;
 }
 
 /** Cendere çemberinin dışında mı? */

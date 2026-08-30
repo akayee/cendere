@@ -290,6 +290,7 @@ function tryTouchAttack(world, ent) {
   const c = ent.combat;
   const target = ent.ai && world.entities.get(ent.ai.targetId);
   if (!target || target.dead || c.attackCd > 0) return;
+  if (target.kind === 'player' && isProtected(world, target)) return; // kendi üssünde mob da vuramaz
   const rr = ent.body.radius + target.body.radius + COMBAT.TOUCH_PAD;
   if (distSq(ent.transform.x, ent.transform.y, target.transform.x, target.transform.y) < rr * rr) {
     applyDamage(world, target, c.touchDamage, ent);
@@ -379,14 +380,14 @@ export function applyDamage(world, target, amount, source) {
 
   if (target.health.hp <= 0) {
     target.dead = true;
-    // Kill ödülleri: XP (Vahşi Bölge'de ×2) + kill başına can (kartlardan).
+    // Kill ödülleri: XP (kendi GZ'n dışında ×2) + kill başına can (kartlardan).
     // Oyuncu kesmek her mobdan değerlidir ve kurbanın seviyesiyle büyür (PLAN §6).
     if (source.progress) {
       let base = 0;
       if (target.ai?.def.xp) base = target.ai.def.xp;
       else if (target.kind === 'player') base = XP.PVP_BASE + target.progress.level * XP.PVP_PER_LEVEL;
       if (base > 0) {
-        const gained = base * xpMultiplier(world, target.transform.x, target.transform.y);
+        const gained = base * xpMultiplier(world, source);
         source.progress.xp += gained;
         world.bus.emit('xp.gained', { x: source.transform.x, y: source.transform.y, amount: gained });
       }

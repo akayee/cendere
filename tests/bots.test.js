@@ -1,7 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { createWorld } from '../src/sim/world.js';
 import { createPlayer, createMob, createResource } from '../src/sim/entity.js';
-import { spawnBots, spawnT2Camps } from '../src/sim/spawn.js';
+import { ZONE } from '../src/data/balance.js';
+
+/** Test yardımcısı: N bot, GZ halkasında kendi üsleriyle (eski spawnBots muadili). */
+function spawnBots(world, count) {
+  const cx = world.map.widthPx / 2;
+  const cy = world.map.heightPx / 2;
+  for (let i = 0; i < count; i++) {
+    const a = (i / Math.max(count, 3)) * Math.PI * 2 + 0.3;
+    const gx = cx + Math.cos(a) * ZONE.RING_RADIUS;
+    const gy = cy + Math.sin(a) * ZONE.RING_RADIUS;
+    const bot = createPlayer(world, ['cengaver', 'nisanci', 'ocakci'][i % 3], gx, gy, {
+      bot: true,
+      personality: { aggro: 0.6, greed: 0.7 },
+      name: 'TestBot' + i,
+    });
+    world.gzones.push({ x: gx, y: gy, r: ZONE.PERSONAL_R, ownerId: bot.id });
+  }
+  world.match.playersTotal = count + 1;
+}
 import { step } from '../src/sim/pipeline.js';
 import { PHASES } from '../src/data/phases.js';
 
@@ -41,24 +59,26 @@ describe('M6 — botlar, PvP, kese, T2', () => {
     expect(bot.progress.pendingCards).toBeLessThan(3);
   });
 
-  it('PvP: GZ içinde oyuncular birbirine vuramaz, dışarıda vurur', () => {
+  it('PvP: bot KENDİ üssündeyken vurulamaz, dışarıda vurulur', () => {
     const { world, player, cx, cy } = setup();
     spawnBots(world, 1);
     const bot = world.movers.find((m) => m.botAi);
-    // İkisi de GZ içinde, bitişik
-    bot.transform.x = bot.transform.prevX = cx + 12;
-    bot.transform.y = bot.transform.prevY = cy;
+    const gz = world.gzones.find((g) => g.ownerId === bot.id);
+    // Bot kendi üssünün ortasında; oyuncu dibinde (oyuncunun üssü değil → koruma yok ona)
+    bot.transform.x = bot.transform.prevX = gz.x;
+    bot.transform.y = bot.transform.prevY = gz.y;
     bot.botAi.thinkT = 9999; // bot kıpırdamasın
     bot.input.moveX = 0;
     bot.input.moveY = 0;
+    player.transform.x = player.transform.prevX = gz.x + 12;
+    player.transform.y = player.transform.prevY = gz.y;
     for (let i = 0; i < 90; i++) step(world);
-    expect(bot.health.hp).toBe(bot.health.maxHp); // GZ koruması
+    expect(bot.health.hp).toBe(bot.health.maxHp); // üs koruması
 
-    // İkisini de Vahşi'ye taşı
-    const wx = cx + 500;
-    player.transform.x = player.transform.prevX = wx;
+    // İkisini de üs dışına taşı (zindan tarafı)
+    player.transform.x = player.transform.prevX = cx + 100;
     player.transform.y = player.transform.prevY = cy;
-    bot.transform.x = bot.transform.prevX = wx + 12;
+    bot.transform.x = bot.transform.prevX = cx + 112;
     bot.transform.y = bot.transform.prevY = cy;
     for (let i = 0; i < 90; i++) step(world);
     expect(bot.health.hp).toBeLessThan(bot.health.maxHp); // artık vurulabilir
@@ -138,16 +158,17 @@ describe('M6 — botlar, PvP, kese, T2', () => {
     expect(broken).toBe(0);
   }, 20000);
 
-  it('Sürgün bot GZ\'de OTURMAZ: bütçesi bitince dışarı çıkar', () => {
-    const { world, cx, cy } = setup();
+  it('Sürgün bot KENDİ üssünde OTURMAZ: bütçesi bitince dışarı çıkar', () => {
+    const { world } = setup();
     spawnBots(world, 1);
     const bot = world.movers.find((m) => m.botAi);
-    bot.transform.x = bot.transform.prevX = cx + 50; // GZ içinde
-    bot.transform.y = bot.transform.prevY = cy;
+    const gz = world.gzones.find((g) => g.ownerId === bot.id);
+    bot.transform.x = bot.transform.prevX = gz.x;
+    bot.transform.y = bot.transform.prevY = gz.y;
     bot.zone.gzBudget = 1; // birazdan Sürgün
     for (let i = 0; i < 60 * 12; i++) step(world);
-    const d = Math.hypot(bot.transform.x - cx, bot.transform.y - cy);
-    expect(d).toBeGreaterThan(world.match.gzR); // dışarı çıktı
+    const d = Math.hypot(bot.transform.x - gz.x, bot.transform.y - gz.y);
+    expect(d).toBeGreaterThan(gz.r); // üssünden çıktı
   }, 20000);
 
   it('geç oyunda (Son Cendere) botlar eşit güçteki rakibe de saldırır', () => {

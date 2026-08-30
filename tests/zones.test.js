@@ -63,49 +63,73 @@ describe('zoneSystem', () => {
     expect(player.health.hp).toBe(hp0);
   });
 
-  it('GZ bütçesi içeride erir, biterse Sürgün; dışarıda 1/3 hızla dolar ve Sürgün kalkar', () => {
+  /** Oyuncuya bulunduğu noktada kişisel GZ ver (yeni model test yardımcısı) */
+  function giveGz(world, player) {
+    const gz = { x: player.transform.x, y: player.transform.y, r: ZONE.PERSONAL_R, ownerId: player.id };
+    world.gzones.push(gz);
+    return gz;
+  }
+
+  it('kendi GZ\'n CAN BASAR; bütçe erir, biterse Sürgün; dışarıda dolup Sürgün kalkar', () => {
     const { world, player } = setup();
+    const gz = giveGz(world, player);
+    player.health.hp = 60;
+    for (let i = 0; i < 60 * 3; i++) step(world);
+    expect(player.health.hp).toBeGreaterThan(60 + ZONE.GZ_HEAL * 2); // üs iyileştirdi
+
     player.zone.gzBudget = 1; // neredeyse bitmiş
     let exiled = false;
     let lifted = false;
     world.bus.on('zone.exiled', () => (exiled = true));
     world.bus.on('zone.exileLifted', () => (lifted = true));
-
-    for (let i = 0; i < 90; i++) step(world); // merkezde (GZ içinde) 1.5 sn
+    for (let i = 0; i < 90; i++) step(world); // üs içinde 1.5 sn
     expect(exiled).toBe(true);
-    expect(player.zone.exiled).toBe(true);
 
-    // Dışarı çık: bütçe dolmaya başlar, EXILE_LIFT'e ulaşınca sürgün kalkar
-    player.transform.x = player.transform.prevX = world.map.widthPx / 2 + 400;
+    // Uzağa çık: bütçe dolmaya başlar, EXILE_LIFT'e ulaşınca Sürgün kalkar
+    player.transform.x = player.transform.prevX = gz.x - 300;
     const need = ZONE.EXILE_LIFT * ZONE.GZ_REFILL_RATIO; // sn
-    for (let i = 0; i < (need + 2) * 60 && !lifted; i++) step(world);
+    for (let i = 0; i < (need + 3) * 60 && !lifted; i++) step(world);
     expect(lifted).toBe(true);
     expect(player.zone.exiled).toBe(false);
   }, 20000);
 
-  it('bütçe bitince GZ oyuncuyu FİZİKSEL olarak dışarı iter ve kalırken yakar', () => {
+  it('başkasının GZ\'si koruma da can da VERMEZ', () => {
     const { world, player } = setup();
-    player.transform.x = player.transform.prevX = world.map.widthPx / 2 + 40; // GZ içi
+    // Sahipsiz/yabancı bir GZ dairesi tam üstünde
+    world.gzones.push({ x: player.transform.x, y: player.transform.y, r: ZONE.PERSONAL_R, ownerId: 99999 });
+    player.health.hp = 60;
+    const budget0 = player.zone.gzBudget;
+    for (let i = 0; i < 60 * 2; i++) step(world);
+    expect(player.health.hp).toBeLessThanOrEqual(60); // iyileşme yok
+    expect(player.zone.gzBudget).toBeGreaterThanOrEqual(budget0); // bütçe de erimez
+  });
+
+  it('bütçe bitince kendi GZ\'n seni FİZİKSEL olarak dışarı iter ve kalırken yakar', () => {
+    const { world, player } = setup();
+    const gz = giveGz(world, player);
     player.zone.gzBudget = 0.5;
     const hp0 = player.health.hp;
-    // Hiç girdi yok: oyuncu direnmiyor ama itilmeli
     for (let i = 0; i < 60 * 5; i++) step(world);
-    const d = Math.hypot(player.transform.x - world.map.widthPx / 2, player.transform.y - world.map.heightPx / 2);
-    expect(d).toBeGreaterThan(world.match.gzR); // atıldı
+    const d = Math.hypot(player.transform.x - gz.x, player.transform.y - gz.y);
+    expect(d).toBeGreaterThan(gz.r); // atıldı
     expect(player.health.hp).toBeLessThan(hp0); // içeride geçen sürenin yanma cezası
   });
 
-  it('itilmeye DİRENEN oyuncu da dışarı çıkar (itiş yürüme hızından güçlü)', () => {
+  it('itilmeye DİRENEN oyuncu da üsten çıkar (itiş yürüme hızından güçlü)', () => {
     const { world, player } = setup();
-    player.transform.x = player.transform.prevX = world.map.widthPx / 2 + 60;
+    const gz = giveGz(world, player);
     player.zone.gzBudget = 0;
     player.zone.exiled = true;
     for (let i = 0; i < 60 * 8; i++) {
-      player.input.moveX = -1; // merkeze doğru bastırıyor
+      const dx = gz.x - player.transform.x;
+      const dy = gz.y - player.transform.y;
+      const dl = Math.hypot(dx, dy) || 1;
+      player.input.moveX = dx / dl; // üssün merkezine doğru bastırıyor
+      player.input.moveY = dy / dl;
       step(world);
     }
-    const d = Math.hypot(player.transform.x - world.map.widthPx / 2, player.transform.y - world.map.heightPx / 2);
-    expect(d).toBeGreaterThan(world.match.gzR);
+    const d = Math.hypot(player.transform.x - gz.x, player.transform.y - gz.y);
+    expect(d).toBeGreaterThan(gz.r);
   }, 15000);
 
   it('Ani Ölüm iyileştirmeyi yarıya indirir (healMult)', () => {

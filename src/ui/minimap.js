@@ -55,14 +55,16 @@ export function createMinimap(map) {
         ctx.stroke();
       }
 
-      // GZ
-      if (m.gzR > 4) {
-        ctx.strokeStyle = 'rgba(255,215,94,0.9)';
-        ctx.setLineDash([3, 2]);
+      // Kişisel GZ'ler: kendi üssün parlak altın halka, diğerleri soluk nokta
+      for (const gz of world.gzones) {
+        const r = gz.r * m.gzScale;
+        if (r <= 3) continue;
+        const own = gz.ownerId === player.id;
+        ctx.strokeStyle = own ? 'rgba(255,215,94,0.95)' : 'rgba(255,235,170,0.4)';
+        ctx.lineWidth = own ? 1.4 : 0.8;
         ctx.beginPath();
-        ctx.arc(cx, cy, m.gzR * k, 0, Math.PI * 2);
+        ctx.arc(gz.x * k, gz.y * k, Math.max(2, r * k), 0, Math.PI * 2);
         ctx.stroke();
-        ctx.setLineDash([]);
       }
 
       // Kamplar (PvE hedefleri — "kamp bulamıyorum" çözümü): T2 turuncu, elit mor

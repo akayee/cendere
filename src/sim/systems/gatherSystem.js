@@ -167,7 +167,7 @@ function completeChannel(world, ent) {
     return;
   }
 
-  const amount = yieldMultiplier(world, res.transform.x, res.transform.y);
+  const amount = yieldMultiplier(world, ent); // kendi GZ'nde ×1, dışarıda ×2
   if (res.resType === 'herb') {
     g.pots = Math.min(ECON.POT_MAX, g.pots + amount);
   } else if (res.resType === 'wood') {

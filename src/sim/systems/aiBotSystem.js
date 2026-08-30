@@ -9,7 +9,7 @@
 import { distSq } from '../../core/vec2.js';
 import { range } from '../../core/rng.js';
 import { SIM, ECON, ZONE } from '../../data/balance.js';
-import { isOutsideCendere, isProtected, isInGZ } from '../zone.js';
+import { isOutsideCendere, isProtected, isInOwnGZ, gzOf, gzRadius } from '../zone.js';
 
 const THINK_INTERVAL = 0.5;
 const PURSUE_TIMEOUT = 6; // sn: bu kadar süre ulaşılamayan hedef...
@@ -98,25 +98,33 @@ function decide(world, ent) {
     return;
   }
 
-  // 1.5) GZ bütçe yönetimi: Sürgün'sen ya da bütçen tükeniyorsa GZ'DE OTURMA —
-  // dışarı çık ki bütçe dolsun (GZ kampçılığıyla maç kilitlenmesin)
-  if (isInGZ(world, t.x, t.y) && (ent.zone.exiled || ent.zone.gzBudget < ZONE.GZ_BUDGET * 0.25)) {
-    const dx = t.x - cx;
-    const dy = t.y - cy;
+  // 1.5) Üs bütçe yönetimi: Sürgün'sen ya da bütçen tükeniyorsa KENDİ GZ'NDE OTURMA —
+  // dışarı çık ki bütçe dolsun (üs kampçılığıyla maç kilitlenmesin)
+  const myGz = gzOf(world, ent);
+  if (myGz && isInOwnGZ(world, ent) && (ent.zone.exiled || ent.zone.gzBudget < ZONE.GZ_BUDGET * 0.25)) {
+    const dx = t.x - myGz.x;
+    const dy = t.y - myGz.y;
     const dl = Math.hypot(dx, dy) || 1;
-    const outR = world.match.gzR + 70;
-    setGoal(ai, cx + (dx / dl) * outR, cy + (dy / dl) * outR, 6);
+    const outR = gzRadius(world, myGz) + 60;
+    setGoal(ai, myGz.x + (dx / dl) * outR, myGz.y + (dy / dl) * outR, 6);
     return;
   }
 
-  // 2) Canı çok azsa: en yakın düşman oyuncudan uzağa çekil
+  // 2) Canı çok azsa: bütçe varsa KENDİ ÜSSÜNE kaç (koruma + can basar);
+  // üs yoksa/eridiyse düşmandan uzağa
   const threat = nearestEnemyPlayer(world, ent, 140);
-  if (ent.health.hp < ent.health.maxHp * 0.3 && threat) {
-    const fx = t.x - threat.transform.x;
-    const fy = t.y - threat.transform.y;
-    const fl = Math.hypot(fx, fy) || 1;
-    setGoal(ai, t.x + (fx / fl) * 90, t.y + (fy / fl) * 90, 4);
-    return;
+  if (ent.health.hp < ent.health.maxHp * 0.3) {
+    if (myGz && gzRadius(world, myGz) > 10 && ent.zone.gzBudget > 15 && !ent.zone.exiled) {
+      setGoal(ai, myGz.x, myGz.y, 8);
+      return;
+    }
+    if (threat) {
+      const fx = t.x - threat.transform.x;
+      const fy = t.y - threat.transform.y;
+      const fl = Math.hypot(fx, fy) || 1;
+      setGoal(ai, t.x + (fx / fl) * 90, t.y + (fy / fl) * 90, 4);
+      return;
+    }
   }
 
   // 3) PvP fırsatı: yakında saldırılabilir oyuncu + agresiflik + güç üstünlüğü.

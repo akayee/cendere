@@ -101,15 +101,20 @@ export const T2_MOBS = {
 
 export const T2_CAMPS = 6; // Genişleme'deki ilk kamp dalgası (her kampta 3 mob)
 
-// --- Kamp yöneticisi (kullanıcı geri bildirimi): kamplar HEP cendere içinde doğar,
-// daraldıkça içeri kayar; evre ilerledikçe yalnız güçlüler çıkar; yenilenme yavaştır.
+// --- Kamp yöneticisi: ZİNDAN modeli — kamplar merkez bölgede yoğun doğar
+// (cendere daraldıkça otomatik daha da içeride), evre ilerledikçe güçlenir.
 export const CAMPS = {
   RESPAWN: 55, // kesilen kampın yerine yenisinin gelme aralığı (sn) — uzun cooldown
-  RADIAL: [0.25, 0.7], // kamp, cendere yarıçapının bu bandında doğar (hep İÇERİDE)
-  GZ_PAD: 50, // GZ sınırından en az bu kadar uzak
-  TARGET: { hazirlik: 0, genisleme: 6, sikisma: 5, son: 2, aniolum: 0 }, // hedef canlı kamp
+  RADIAL: [0.05, 0.5], // kamp, cendere yarıçapının MERKEZ bandında doğar (zindan)
+  GZ_PAD: 90, // herhangi bir kişisel GZ'den en az bu kadar uzak
+  TARGET: { hazirlik: 7, genisleme: 10, sikisma: 8, son: 3, aniolum: 0 }, // hedef canlı kamp
   // Evreye göre kamp içeriği: [mobId, üyeSayısı, elitMi] seçenekleri
   KINDS: {
+    hazirlik: [
+      ['haydut', 3, false],
+      ['hortlak', 3, false],
+      ['orumcek', 3, false],
+    ],
     genisleme: [
       ['haydut', 3, false],
       ['hortlak', 3, false],
