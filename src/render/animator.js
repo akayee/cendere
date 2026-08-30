@@ -94,13 +94,14 @@ export function drawCharacter(ctx, images, ent, x, y, timeSec) {
     ctx.fill();
   }
 
-  // Hasar yanıp sönmesi: sprite silüetini beyaza boyayıp üstüne bindir
+  // Hasar flaşı: sprite silüetini KIRMIZIYA boyayıp üstüne bindir (~0.15 sn).
+  // Tek scratch canvas yeniden kullanılır — her karede yeni canvas YOK (mobil perf).
   if (ent.health?.hurtT > 0) {
     sctx.clearRect(0, 0, set.frameW, set.frameH);
     sctx.globalCompositeOperation = 'source-over';
     sctx.drawImage(img, col * set.frameW, frame * set.frameH, set.frameW, set.frameH, 0, 0, set.frameW, set.frameH);
     sctx.globalCompositeOperation = 'source-in';
-    sctx.fillStyle = 'rgba(255,255,255,0.75)';
+    sctx.fillStyle = 'rgba(255,56,44,0.7)';
     sctx.fillRect(0, 0, set.frameW, set.frameH);
     ctx.drawImage(scratch, 0, 0, set.frameW, set.frameH, dx, dy, set.frameW, set.frameH);
   }

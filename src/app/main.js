@@ -22,6 +22,7 @@ import { createCardScreen } from '../ui/cardScreen.js';
 import { createContextButton } from '../ui/contextButton.js';
 import { createPotButton } from '../ui/potButton.js';
 import { createBanner } from '../ui/banner.js';
+import { createCountdown } from '../ui/countdown.js';
 import { createCardReveal } from '../ui/cardReveal.js';
 import { createKillFeed } from '../ui/killFeed.js';
 import { createMinimap } from '../ui/minimap.js';
@@ -32,6 +33,11 @@ import { createSfx } from '../audio/sfx.js';
 import { startLoop } from './gameLoop.js';
 
 const ZOOM = 3;
+// Maç açılışı (render/app sabitleri — oynanış verisi değil, sunum):
+// geri sayım süresi, "İYİ ŞANSLAR!" süresi ve başlangıç zoom oranı (normalin yarısı)
+const INTRO_T = 3;
+const INTRO_LUCK_T = 0.8;
+const INTRO_ZOOM0 = 0.5;
 // Backing-store çözünürlüğüne üst sınır (render sabiti): büyük tabletlerde
 // (örn. 2560×1600 × dpr) ~4M piksellik 2D canvas her karede dolduruluyordu —
 // mobil GPU'da lag'ın kök nedeni. CSS canvas'ı %100 gerdiği için görüntü ölçeklenir.
@@ -87,6 +93,7 @@ function startMatch(images, sfx, classId) {
   const contextButton = createContextButton(() => (gatherQueued = true));
   const potButton = createPotButton(() => (potQueued = true));
   const banner = createBanner();
+  const countdown = createCountdown();
   const cardReveal = createCardReveal();
   const killFeed = createKillFeed();
   const dangerTint = createDangerTint();
@@ -259,9 +266,24 @@ function startMatch(images, sfx, classId) {
   let lastTime = performance.now();
   let prevAlive = Infinity;
 
+  // --- Maç açılışı: 3 sn geri sayım — sim DONUK (adım atılmaz), render canlı.
+  // introT render'da frameDt ile erir; kamera yarı zoom'dan oyun zoom'una yaklaşır.
+  let introT = INTRO_T;
+  const easeInOutQuad = (t) => (t < 0.5 ? 2 * t * t : 1 - (2 - 2 * t) * (2 - 2 * t) / 2);
+
   startLoop({
     update() {
       if (world.match.over) return;
+      if (introT > 0) {
+        // Girdi yutulur: kuyruklar ve klavye latch'leri boşaltılır, intent üretilmez
+        skillQueued = cardsQueued = gatherQueued = potQueued = false;
+        pickQueued = -1;
+        keyboard.consumeSkill();
+        keyboard.consumeCards();
+        keyboard.consumeGather();
+        keyboard.consumePot();
+        return;
+      }
       const t = touch.getAxis();
       const k = keyboard.getAxis();
       const axis = t.active ? t : k;
@@ -295,8 +317,25 @@ function startMatch(images, sfx, classId) {
       lastTime = now;
 
       effects.update(frameDt);
+
+      // Açılış: geri sayımı erit, kamerayı easing'le yakınlaştır, sayıyı göster
+      if (introT > 0) {
+        introT = Math.max(0, introT - frameDt);
+        const p = easeInOutQuad(1 - introT / INTRO_T);
+        camera.zoom = ZOOM * scale * (INTRO_ZOOM0 + (1 - INTRO_ZOOM0) * p);
+        if (introT > 0) {
+          countdown.set(String(Math.ceil(introT)));
+        } else {
+          // 3 sn doldu: oyun başlar, kısa "İYİ ŞANSLAR!" ile geri sayım kalkar
+          camera.zoom = ZOOM * scale;
+          countdown.set('İYİ ŞANSLAR!', { durationSec: INTRO_LUCK_T, big: false });
+          setTimeout(() => countdown.destroy(), INTRO_LUCK_T * 1000 + 100);
+        }
+      }
+
       followCamera(camera, player.transform.x, player.transform.y, world.map, canvas.width, canvas.height);
-      renderer.render(world, camera, alpha, timeSec, canvas.width, canvas.height);
+      // Geri sayımda oyuncunun sprite'ı yanıp söner (spawn vurgusu — render davranışı)
+      renderer.render(world, camera, alpha, timeSec, canvas.width, canvas.height, introT > 0 ? player.id : 0);
       drawJoystick(ctx, touch, scale);
 
       // Şarj varsa buton hazır görünür (Yankı Becerisi ile 2 şarj olabilir)

@@ -16,12 +16,15 @@ export const CLASSES = {
     botSprites: ['ninjaRed', 'ninjaGray'],
     pickupBonus: 'armor', // uzmanlık: zırh pickup'ı ona +2 verir (×2 etki)
     auto: { type: 'melee', damage: 8, range: 24, arc: Math.PI * 1.1, cooldown: 0.55, swingTime: 0.18 },
-    skill: { type: 'dash', speedMul: 4.6, duration: 0.16, cooldown: 2.2, damage: 12 },
+    // leapRange: rakibe atlama arama menzili — bu menzildeki en yakın CANLI rakip
+    // (oyuncu/bot; MOB DEĞİL) varsa atılma onun o anki konumuna kilitlenir.
+    // cooldown 2.2 → 3.0: rakibe atlama beceriyi belirgin güçlendirdi (denge: balance.mjs)
+    skill: { type: 'dash', speedMul: 4.6, duration: 0.16, cooldown: 3.0, damage: 12, leapRange: 120 },
     flavor: {
       autoName: 'Kılıç Savuruşu',
       autoDesc: 'Öndeki yay içindeki TÜM düşmanlara vurur',
       skillName: 'Atılma',
-      skillDesc: 'İleri atılır, yoldaki düşmanlara hasar verir · 2.2 sn',
+      skillDesc: 'Rakibe atlar; rakip yoksa ileri atılır · 3 sn',
       skillIcon: 'pack/Items/Weapons/Ninjaku/Sprite.png',
       perk: 'Zırh toplaması ×2 etki',
     },

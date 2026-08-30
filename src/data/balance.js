@@ -27,10 +27,13 @@ export const PHYS = {
 export const COMBAT = {
   TOUCH_PAD: 2.5, // mob temas saldırısı için ekstra menzil
   KNOCKBACK: 7, // hasar alanın itilme mesafesi (dünya birimi)
-  HURT_TIME: 0.18, // hasar sonrası beyaz yanıp sönme süresi (sn)
+  HURT_TIME: 0.15, // hasar sonrası kırmızı flaş süresi (sn) — görselini animator çizer
   DUMMY_REPAIR_TIME: 5, // kırılan kuklanın onarım bekleme süresi (sn)
   IN_COMBAT_TIME: 3, // son hasardan sonra "savaşta" sayılma süresi (kese açılışı bekler)
   LOOT_DELAY: 0.5, // Ganimet Kesesi çatışmadan bu kadar sonra açılabilir (kazara açılmasın)
+  // Alan Yakması: toplam hasar bütçesinin (dps × areaDuration) bu payı atıldığı AN
+  // alandakilere iner; kalanı alanda kalındıkça DoT olarak işler. Toplam bütçe değişmez.
+  AREA_BURST_RATIO: 0.25,
 };
 
 // Zehir (PLAN §9 — Ultima usulü): hasarı küçük, asıl silahı İYİLEŞME KİLİDİ.

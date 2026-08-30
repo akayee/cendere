@@ -1,15 +1,18 @@
 // Maç evreleri ve cendere daralma çizelgesi (PLAN §2).
 // Yarıçaplar evre BAŞLANGICINDAKİ değerdir; iki evre arasında doğrusal daralır.
 
-export const MATCH_END = 480; // 8:00 — kesin bitiş
+// Çizelge ~%15 kısaltıldı (eski 480 sn → 408 sn); evre başlangıçları oransal
+// (×0.85) kaydırıldı. Yarıçap/hasar eğrileri evre zamanlarına bağlı olduğundan
+// daralma otomatik olarak aynı oranda hızlanır — eğri şekli değişmez.
+export const MATCH_END = 408; // 6:48 — kesin bitiş
 
 export const PHASES = [
   // start (sn), cendere yarıçapı (dünya px), dışarıda kalma hasarı (can/sn)
   { key: 'hazirlik', name: 'Hazırlık', start: 0, radius: 1450, dps: 0 },
-  { key: 'genisleme', name: 'Genişleme', start: 75, radius: 1450, dps: 2 },
-  { key: 'sikisma', name: 'Sıkışma', start: 195, radius: 700, dps: 5 },
-  { key: 'son', name: 'Son Cendere', start: 315, radius: 380, dps: 10 },
-  { key: 'aniolum', name: 'Ani Ölüm', start: 405, radius: 140, dps: 20 },
+  { key: 'genisleme', name: 'Genişleme', start: 64, radius: 1450, dps: 2 },
+  { key: 'sikisma', name: 'Sıkışma', start: 166, radius: 700, dps: 5 },
+  { key: 'son', name: 'Son Cendere', start: 268, radius: 380, dps: 10 },
+  { key: 'aniolum', name: 'Ani Ölüm', start: 344, radius: 140, dps: 20 },
 ];
 
 export const FINAL_RADIUS = 60; // 20:00'de ulaşılan minimum çember

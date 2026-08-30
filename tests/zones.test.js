@@ -22,6 +22,27 @@ describe('phases.js çizelgesi', () => {
     expect(cendereRadiusAt(MATCH_END)).toBeLessThan(100);
   });
 
+  it('kısaltılmış çizelge tutarlı: başlangıçlar kesin artan ve MATCH_END içinde', () => {
+    // Toplam süre ~%15 kısaltıldı (480 → 408); evre başlangıçları oransal kaydı
+    expect(MATCH_END).toBe(408);
+    expect(PHASES[0].start).toBe(0);
+    for (let i = 1; i < PHASES.length; i++) {
+      expect(PHASES[i].start).toBeGreaterThan(PHASES[i - 1].start);
+      expect(PHASES[i].start).toBeLessThan(MATCH_END);
+      // Cendere hasarı evre ilerledikçe asla azalmaz
+      expect(PHASES[i].dps).toBeGreaterThanOrEqual(PHASES[i - 1].dps);
+    }
+  });
+
+  it('yarıçap eğrisi evre sınırlarında süreklidir (sıçrama yok)', () => {
+    for (let i = 1; i < PHASES.length; i++) {
+      const t = PHASES[i].start;
+      // Sınırın hemen öncesi ile evre başlangıç yarıçapı örtüşmeli
+      expect(Math.abs(cendereRadiusAt(t - 0.001) - PHASES[i].radius)).toBeLessThan(1);
+      expect(cendereRadiusAt(t)).toBeCloseTo(PHASES[i].radius, 1);
+    }
+  });
+
   it('Ani Ölüm hasarı 15 sn\'de bir katlanır ve tavana çarpar', () => {
     const start = PHASES[4].start;
     expect(cendereDpsAt(start)).toBe(20);
@@ -33,7 +54,7 @@ describe('phases.js çizelgesi', () => {
 
 describe('zoneSystem — cendere (kişisel GZ\'ler kaldırıldı)', () => {
   it('evre değişince event yayınlanır', () => {
-    const { world } = setup(178);
+    const { world } = setup(PHASES[1].start - 2); // Genişleme'ye 2 sn kala
     const events = [];
     world.bus.on('zone.phaseChanged', (e) => events.push(e.phase));
     for (let i = 0; i < 240; i++) step(world);

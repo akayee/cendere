@@ -55,6 +55,7 @@ export function combatSystem(world) {
       if (poison.acc >= POISON.TICK) {
         poison.acc -= POISON.TICK;
         ent.health.hp -= poison.dps;
+        ent.health.hurtT = COMBAT.HURT_TIME; // zehir tick'i de hasar flaşı üretsin (render okur)
         world.bus.emit('poison.tick', { id: ent.id, x: ent.transform.x, y: ent.transform.y, amount: poison.dps });
         if (ent.health.hp <= 0) {
           ent.dead = true;
@@ -127,7 +128,22 @@ function tryStartSkill(world, ent) {
 
   const s = c.skill;
   if (s.type === 'dash') {
-    c.dash = { t: s.duration, dirX: dx, dirY: dy, hitIds: [] };
+    // Rakibe atlama: leapRange içindeki en yakın CANLI rakip (oyuncu/bot — MOB DEĞİL)
+    // varsa atılma onun O ANKİ konumuna kilitlenir: tek atılım, sürekli takip yok.
+    // Mesafe tavanı mevcut atılma mesafesidir — süre kısalabilir, asla uzamaz.
+    const foe = s.leapRange ? nearestFoePlayer(world, ent, s.leapRange) : null;
+    let dur = s.duration;
+    if (foe) {
+      const fx = foe.transform.x - ent.transform.x;
+      const fy = foe.transform.y - ent.transform.y;
+      const fd = Math.hypot(fx, fy) || 1;
+      dx = fx / fd;
+      dy = fy / fd;
+      const dashSpeed = ent.motion.speed * s.speedMul;
+      // En az 2 tick: bitişik rakipte de çarpma kontrolü çalışsın
+      dur = Math.min(s.duration, Math.max(SIM.DT * 2, fd / dashSpeed));
+    }
+    c.dash = { t: dur, dirX: dx, dirY: dy, hitIds: [] };
   } else if (s.type === 'homingShot') {
     // Şaşmaz Ok: menzilde hedef YOKSA harcanmaz (uzun cooldown boşa yanmasın)
     const target = nearestTarget(world, ent, c.auto.range * s.seekRange);
@@ -157,16 +173,25 @@ function tryStartSkill(world, ent) {
     const target = nearestTarget(world, ent, c.auto.range * (s.throwRange ?? 1));
     const px = target ? target.transform.x : ent.transform.x;
     const py = target ? target.transform.y : ent.transform.y;
+    // Toplam hasar bütçesi (dps × süre) sabit kalır: %AREA_BURST_RATIO'su atıldığı AN
+    // alandakilere iner, kalanı alanda kalındıkça DoT olarak işler.
+    const burst = s.dps * s.areaDuration * COMBAT.AREA_BURST_RATIO;
     world.areas.push({
       x: px,
       y: py,
       r: s.radius,
-      dps: s.dps,
+      dps: s.dps * (1 - COMBAT.AREA_BURST_RATIO),
       team: c.team,
       ownerId: ent.id,
       ttl: s.areaDuration,
       tickAcc: 0,
     });
+    for (const other of world.movers) {
+      if (other === ent || !canAttack(world, ent, other)) continue;
+      if (distSq(px, py, other.transform.x, other.transform.y) < s.radius * s.radius) {
+        applyDamage(world, other, burst, ent);
+      }
+    }
     world.bus.emit('area.spawned', { id: ent.id, x: px, y: py, r: s.radius });
   }
   c.charges--;
@@ -192,6 +217,21 @@ function updateDash(world, ent) {
       applyDamage(world, other, c.skill.damage, ent);
     }
   }
+}
+
+/** Menzildeki en yakın CANLI rakip oyuncu/bot — moblar ve kuklalar SEÇİLMEZ. */
+function nearestFoePlayer(world, ent, radius) {
+  let best = null;
+  let bestDsq = radius * radius;
+  for (const other of world.movers) {
+    if (other === ent || other.kind !== 'player' || !canAttack(world, ent, other)) continue;
+    const dsq = distSq(ent.transform.x, ent.transform.y, other.transform.x, other.transform.y);
+    if (dsq < bestDsq) {
+      bestDsq = dsq;
+      best = other;
+    }
+  }
+  return best;
 }
 
 /** Menzildeki en yakın saldırılabilir hedef */

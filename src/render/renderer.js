@@ -7,6 +7,7 @@ import { buildGroundCanvas, drawGround } from './tileRenderer.js';
 import { PROPS, RESOURCE_PROPS } from './atlasData.js';
 import { drawZones } from './zoneOverlay.js';
 import { lerp } from '../core/vec2.js';
+import { xpForLevel } from '../data/balance.js'; // veri katmanı importu serbest (XP oranı için)
 
 export function createRenderer(canvas, images, map, effects) {
   const ctx = canvas.getContext('2d', { alpha: false }); // main ile aynı context (opak — mobilde ucuz)
@@ -29,7 +30,9 @@ export function createRenderer(canvas, images, map, effects) {
 
   const drawList = [];
 
-  function render(world, cam, alpha, timeSec, viewW, viewH) {
+  // highlightId: app'in geçtiği "şu entity vurgulu" bilgisi (geri sayımda oyuncu
+  // yanıp söner — spawn vurgusu). Sim habersiz; 0 = vurgu yok.
+  function render(world, cam, alpha, timeSec, viewW, viewH, highlightId = 0) {
     ctx.imageSmoothingEnabled = false;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#1a1c2c';
@@ -63,7 +66,11 @@ export function createRenderer(canvas, images, map, effects) {
 
     for (const item of drawList) {
       if (item.ent) {
+        // Vurgulu entity ~4 Hz opaklık dalgasıyla yanıp söner (görünür↔silik)
+        const blink = highlightId !== 0 && item.ent.id === highlightId;
+        if (blink) ctx.globalAlpha = 0.2 + 0.8 * (0.5 + 0.5 * Math.sin(timeSec * Math.PI * 8));
         drawCharacter(ctx, images, item.ent, item.x, item.y, timeSec);
+        if (blink) ctx.globalAlpha = 1;
       } else {
         const d = item.def;
         ctx.drawImage(
@@ -116,7 +123,8 @@ export function createRenderer(canvas, images, map, effects) {
       }
     }
 
-    // Kanal ilerleme barı (yalnız yoğunlaşma — toplama artık temasla anında)
+    // Kanal ilerleme barı (yalnız yoğunlaşma — toplama artık temasla anında).
+    // Ayak ALTINDA durur: baş üstü artık isim/can/XP bloğuna ait (çakışma olmasın).
     for (const ent of world.movers) {
       const ch = ent.gather?.channel;
       if (!ch) continue;
@@ -124,24 +132,64 @@ export function createRenderer(canvas, images, map, effects) {
       const w = 16;
       const frac = Math.min(1, ch.t / ch.duration);
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(t.x - w / 2, t.y - 24, w, 3);
+      ctx.fillRect(t.x - w / 2, t.y + 5, w, 2.5);
       ctx.fillStyle = '#7ee8a0';
-      ctx.fillRect(t.x - w / 2, t.y - 24, w * frac, 3);
+      ctx.fillRect(t.x - w / 2, t.y + 5, w * frac, 2.5);
     }
 
-    // Can barları: hasarlı mob/kuklalar + rakip oyuncular (botlar her zaman)
+    // Baş üstü katmanı: kendi karakterin (isim + can + ince XP barı), rakip
+    // oyuncular (soluk isim + can barı), hasarlı mob/kuklalar (yalnız minik can
+    // barı — İSİMSİZ). İnterpolasyonlu pozisyon: sprite'la birlikte kayar.
+    ctx.textAlign = 'center';
     for (const ent of world.movers) {
-      const isRival = ent.kind === 'player' && ent.id !== world.playerId;
+      if (ent.dead) continue;
+      const isMe = ent.id === world.playerId;
+      const isRival = ent.kind === 'player' && !isMe;
       const damagedMob = (ent.kind === 'mob' || ent.kind === 'dummy') && ent.health.hp < ent.health.maxHp;
-      if (!isRival && !damagedMob) continue;
+      if (!isMe && !isRival && !damagedMob) continue;
       const t = ent.transform;
-      const w = 12;
+      const ix = lerp(t.prevX, t.x, alpha);
+      const iy = lerp(t.prevY, t.y, alpha);
+      if (ix < view.minX || ix > view.maxX || iy < view.minY || iy > view.maxY) continue;
       const frac = Math.max(0, ent.health.hp / ent.health.maxHp);
+
+      if (damagedMob) {
+        const w = 12;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(ix - w / 2, iy - 19, w, 2.5);
+        ctx.fillStyle = frac > 0.4 ? '#6ee86e' : '#e85a5a';
+        ctx.fillRect(ix - w / 2, iy - 19, w * frac, 2.5);
+        continue;
+      }
+
+      // İsim: minik gölge kopyası + asıl yazı (text-shadow dili; shadowBlur mobilde pahalı)
+      const name = ent.name ?? '';
+      const nameY = isMe ? iy - 25 : iy - 22.8;
+      ctx.font = isMe ? 'bold 4.5px monospace' : 'bold 3.5px monospace';
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      ctx.fillText(name, ix + 0.4, nameY + 0.4);
+      ctx.fillStyle = isMe ? '#ffffff' : 'rgba(255,255,255,0.72)';
+      ctx.fillText(name, ix, nameY);
+
+      // Can barı (mevcut bar diliyle: koyu zemin + yeşil→kırmızı; rakipte turuncu)
+      const w = isMe ? 17 : 16;
+      const hpY = isMe ? iy - 23.5 : iy - 21.5;
+      const hpH = isMe ? 2.4 : 2.2;
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(t.x - w / 2, t.y - 19, w, 2.5);
+      ctx.fillRect(ix - w / 2, hpY, w, hpH);
       ctx.fillStyle = isRival ? '#ff8c5a' : frac > 0.4 ? '#6ee86e' : '#e85a5a';
-      ctx.fillRect(t.x - w / 2, t.y - 19, w * frac, 2.5);
+      ctx.fillRect(ix - w / 2, hpY, w * frac, hpH);
+
+      // Kendi karakterinde canın hemen altında daha ince ALTIN XP barı
+      if (isMe && ent.progress) {
+        const xpFrac = Math.min(1, ent.progress.xp / xpForLevel(ent.progress.level));
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(ix - w / 2, iy - 20.4, w, 1.2);
+        ctx.fillStyle = '#ffd75e';
+        ctx.fillRect(ix - w / 2, iy - 20.4, w * xpFrac, 1.2);
+      }
     }
+    ctx.textAlign = 'left';
 
     if (effects) effects.draw(ctx);
 
