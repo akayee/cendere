@@ -78,6 +78,11 @@ export function createCardScreen(onPick) {
     if (typeof icon === 'string') {
       return `<img src="${icon}" style="max-width:28px;max-height:28px;transform:scale(1.7)" alt="">`;
     }
+    // Emoji ikon: pack'te uygun sprite yoksa (çizme/kol). Boyut + hafif gölgeyle
+    // pikselli sahneye oturtulur — ayrı asset gerekmez.
+    if (icon.emoji) {
+      return `<span style="font-size:21px;line-height:1;filter:drop-shadow(0 1px 1px #000a)">${icon.emoji}</span>`;
+    }
     // Sprite sheet'ten kare: background-position ile kırp
     return (
       `<div class="crop" style="width:${icon.w}px;height:${icon.h}px;transform:scale(1.1);` +

@@ -351,9 +351,13 @@ export function applyDamage(world, target, amount, source) {
     crit = true;
   }
   if (amount <= 0) return; // sıfır hasarlı vuruş yok sayılır
-  if (tgtMods?.armor > 0) amount = amount - tgtMods.armor;
+  // Zırh hasarı düşürür ama en fazla %70: vuruş, ham hasarın MIN_DAMAGE_RATIO'sundan
+  // aşağı İNEMEZ. (Eski düz max(1,...) tabanı, zırh istifinde her vuruşu 1'e çakıyordu.)
+  if (tgtMods?.armor > 0) {
+    amount = Math.max(amount * COMBAT.MIN_DAMAGE_RATIO, amount - tgtMods.armor);
+  }
   // Uygulanan hasar her zaman düz tam sayıdır (stat'lar ondalıklı olabilir — ×1.02 vb.);
-  // zırh ne kadar yüksek olursa olsun isabet en az 1 vurur
+  // mutlak taban yine 1'dir
   amount = Math.max(1, Math.round(amount));
 
   target.health.hp -= amount;

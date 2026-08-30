@@ -34,6 +34,10 @@ export const COMBAT = {
   // Alan Yakması: toplam hasar bütçesinin (dps × areaDuration) bu payı atıldığı AN
   // alandakilere iner; kalanı alanda kalındıkça DoT olarak işler. Toplam bütçe değişmez.
   AREA_BURST_RATIO: 0.25,
+  // Zırh hasarı en fazla %70 azaltabilir: vuruş, ham hasarın bu ORANINDAN aşağı inemez.
+  // Düz max(1, güç − zırh) tabanı zırh istifinde her vuruşu 1'e çakıyordu — yakın
+  // dövüş (Cengâver) bundan en çok etkilenen sınıftı.
+  MIN_DAMAGE_RATIO: 0.3,
 };
 
 // Zehir (PLAN §9 — Ultima usulü): hasarı küçük, asıl silahı İYİLEŞME KİLİDİ.
@@ -76,16 +80,20 @@ export const ECON = {
   HERB_COUNT: 20, // şifa bitkisi (pot)
   SPEED_COUNT: 16, // hız pickup'ı
   ATK_DMG_MUL: 1.04, // atk pickup'ı: otomatik saldırı hasarı ×1.04 (anında, kalıcı)
-  ARMOR_PER_PICKUP: 1, // armor pickup'ı: anında +1 zırh
+  ARMOR_PER_PICKUP: 1, // armor pickup'ı: anında +1 zırh...
+  ARMOR_PICKUP_CAP: 14, // ...pickup kaynaklı zırh toplam +14'te durur (toplamak serbest — sayaç işler;
+  // kartlar ve eşik ödülleri bu tavana GİRMEZ). Sınırsız istif MIN_DAMAGE_RATIO ile birlikte çözüldü.
   SPEED_PER_PICKUP: 0.03, // speed pickup'ı: kalıcı +%3 hareket hızı...
   SPEED_PICKUP_CAP: 0.3, // ...pickup başına etki toplam +%30'da durur (toplamak serbest — sayaç işler)
   SPEED_TOTAL_CAP: 1.5, // toplam hız çarpanı tavanı (kart + pickup + milestone üst üste binse de)
-  // Eşik ödülleri: bir türden bu kadar pickup toplayan kalıcı görünür aura + bonus kazanır.
+  // Eşik ödülleri: her MILESTONE_STEP pickup'ta bir KADEME (5/10/15/20 — toplam 4 kademe).
+  // 20 tek eşik toplanamıyordu; toplam bonus eskiyle DENK, 4 parçaya bölündü.
   // Hiçbir atk/armor/speed pickup'ı "alınamaz" değildir — sayaç hep eşiğe ilerler.
-  MILESTONE_COUNT: 20, // tür başına eşik (her tür için bir kez tetiklenir)
-  MILESTONE_ATK_MUL: 1.25, // atk 20 → ekstra hasar ×1.25 (tek seferlik, kalıcı)
-  MILESTONE_ARMOR_ADD: 5, // armor 20 → ekstra +5 zırh
-  MILESTONE_SPEED_ADD: 0.1, // speed 20 → ekstra +%10 hız (SPEED_TOTAL_CAP yine aşılamaz)
+  MILESTONE_STEP: 5, // kademe aralığı (tür başına; her kademe BİR kez tetiklenir)
+  MILESTONE_TIERS: 4, // kademe sayısı (4 × 5 = 20 pickup'ta tam ustalık)
+  MILESTONE_ATK_MUL: 1.057, // atk kademesi başına hasar ×1.057 (4 kademede ≈ ×1.25)
+  MILESTONE_ARMOR_ADDS: [1, 1, 1, 2], // armor kademe bonusları (toplam +5)
+  MILESTONE_SPEED_ADD: 0.025, // speed kademesi başına +%2.5 hız (toplam +%10; SPEED_TOTAL_CAP aşılamaz)
   POT_MAX: 3, // taşınabilir pot (PLAN §9)
   POT_MAX_UPGRADED: 4, // ömürlük POT_UPGRADE_AT bitki toplayınca kapasite buna çıkar
   POT_UPGRADE_AT: 3, // pot kapasite artışı eşiği (toplam toplanan bitki)

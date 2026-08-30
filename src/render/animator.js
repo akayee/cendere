@@ -16,21 +16,25 @@ const AURA_COLORS = {
 };
 
 /** Kalıcı eşik auraları: ayak hizasında iç içe, yavaşça dönen kesikli halkalar.
- *  Birden fazla milestone üst üste okunur kalsın diye her etiket kendi yarıçapında. */
+ *  Birden fazla milestone üst üste okunur kalsın diye her etiket kendi yarıçapında.
+ *  Sim {type, tier} yazar: kademe yükseldikçe halka hafifçe belirginleşir
+ *  (parça sayısı + parlaklık artar — abartısız, okunabilirlik önce). */
 function drawAuras(ctx, auras, x, y, timeSec) {
   for (let i = 0; i < auras.length; i++) {
-    const color = AURA_COLORS[auras[i]];
+    const color = AURA_COLORS[auras[i].type];
     if (!color) continue;
+    const tier = auras[i].tier ?? 1;
     const r = 8 + i * 3;
     const spin = timeSec * (i % 2 === 0 ? 1.4 : -1.1); // halkalar zıt yönlerde döner
     ctx.strokeStyle = color;
     ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.55;
-    // 3 parçalı kesikli halka (yerde, hafif basık — top-down perspektif)
-    for (let s = 0; s < 3; s++) {
-      const a0 = spin + (s / 3) * Math.PI * 2;
+    ctx.globalAlpha = 0.38 + tier * 0.06; // kademe 1: 0.44 → kademe 4: 0.62
+    // Kesikli halka: kademe başına bir parça daha (3..6) — yerde, hafif basık
+    const segs = 2 + tier;
+    for (let s = 0; s < segs; s++) {
+      const a0 = spin + (s / segs) * Math.PI * 2;
       ctx.beginPath();
-      ctx.ellipse(x, y + 1, r, r * 0.45, 0, a0, a0 + Math.PI * 0.44);
+      ctx.ellipse(x, y + 1, r, r * 0.45, 0, a0, a0 + (Math.PI * 2) / segs * 0.66);
       ctx.stroke();
     }
   }

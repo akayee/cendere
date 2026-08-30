@@ -118,6 +118,31 @@ describe('progressionSystem', () => {
     expect(xpEvents[0].amount).toBeGreaterThan(0);
   });
 
+  it('unique kartlar (girdap/zehirli_kenar/yanki_becerisi) build\'deyken teklif havuzuna GİRMEZ', () => {
+    // Bu kartların ikinci kopyası hiçbir şey vermez (boolean/set etkiler) — veri sözleşmesi
+    const uniques = CARDS.filter((c) => c.unique).map((c) => c.id);
+    expect(uniques.sort()).toEqual(['girdap', 'yanki_becerisi', 'zehirli_kenar']);
+    // +1 mermi kartları İSTİFLENİR: unique olmamalı
+    expect(CARDS.find((c) => c.id === 'catal_ok').unique).toBeUndefined();
+    expect(CARDS.find((c) => c.id === 'cifte_kor').unique).toBeUndefined();
+
+    const { world, player } = setup(); // cengaver: girdap havuzunda olurdu
+    player.progress.build = [...uniques];
+    player.progress.pendingCards = 6;
+    let offer = null;
+    world.bus.on('cards.offered', (e) => (offer = e.cards));
+    // Birden çok teklif çevrimi: hiçbirinde sahip olunan unique çıkmamalı
+    for (let r = 0; r < 6; r++) {
+      offer = null;
+      player.input.wantCards = true;
+      step(world);
+      expect(offer).toHaveLength(3);
+      for (const id of offer) expect(uniques).not.toContain(id);
+      player.input.pickCard = 0; // teklifi tüket ki bir sonraki tur yeniden çekilsin
+      step(world);
+    }
+  });
+
   it('her kartın etkisi tanımlı alanlardan oluşur (veri sözleşmesi)', () => {
     const known = new Set([
       'maxHpAdd', 'speedMul', 'autoDamageAdd', 'autoCooldownMul', 'autoRangeAdd',

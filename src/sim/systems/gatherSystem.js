@@ -93,7 +93,7 @@ export function canPickup(ent, res) {
   // GÜNCEL kapasite (sabit POT_MAX değil — 3 bitkide 4'e çıkar); doluysa yerde kalır
   if (res.resType === 'herb') return ent.gather.pots < ent.gather.potMax;
   // atk / armor / speed HER ZAMAN toplanır: speed'in +%3 etkisi cap'te durur ama
-  // sayaç eşik ödülüne (MILESTONE_COUNT) ilerlemeye devam eder
+  // sayaç eşik kademelerine (MILESTONE_STEP × MILESTONE_TIERS) ilerlemeye devam eder
   return true;
 }
 
@@ -130,7 +130,15 @@ function applyPickup(world, ent, resType) {
     for (let i = 0; i < mult; i++) ent.combat.auto.damage *= ECON.ATK_DMG_MUL;
     g.stats.atk++;
   } else if (resType === 'armor') {
-    ent.combat.mods.armor += ECON.ARMOR_PER_PICKUP * mult;
+    // Pickup kaynaklı zırh ARMOR_PICKUP_CAP'te durur (sınırsız istif "1 vuruş"
+    // sorununun köküydü); sayaç ve kademe ödülleri yine ilerler. Uzmanlık (×2)
+    // tavana daha HIZLI ulaştırır, tavanı aşamaz — kart/eşik zırhı tavana girmez.
+    for (let i = 0; i < mult; i++) {
+      if (g.armorFromPickups < ECON.ARMOR_PICKUP_CAP) {
+        ent.combat.mods.armor += ECON.ARMOR_PER_PICKUP;
+        g.armorFromPickups += ECON.ARMOR_PER_PICKUP;
+      }
+    }
     g.stats.armor++;
   } else if (resType === 'herb') {
     g.stats.herb++; // ömürlük bitki sayacı (uzmanlık ×2 pot verse de 1 bitkidir)
@@ -154,36 +162,52 @@ function applyPickup(world, ent, resType) {
   checkMilestone(world, ent, resType);
 }
 
-/** Eşik ödülü (güç görünürdür): türden MILESTONE_COUNT toplayana kalıcı bonus + aura. */
+/** Eşik ödülü (güç görünürdür): her MILESTONE_STEP pickup'ta bir KADEME (5/10/15/20).
+ *  Kademe başına bonus eskisinin ~çeyreği; 4 kademenin toplamı eski tek eşiğe denktir.
+ *  Her kademe tür başına BİR kez tetiklenir; ilk kademede aura belirir, sonrakiler
+ *  auranın kademesini yükseltir (yorumunu render bilir). */
 function checkMilestone(world, ent, resType) {
   const g = ent.gather;
   if (!(resType in g.milestones)) return; // herb'in eşiği pot kapasitesidir, aurası yok
-  if (g.milestones[resType] || g.stats[resType] < ECON.MILESTONE_COUNT) return;
-  g.milestones[resType] = true;
+  // Sayaç birden fazla kademe sınırını aşmış olabilir (uzmanlık ×2 vb.) — hepsi işlenir
+  while (
+    g.milestones[resType] < ECON.MILESTONE_TIERS &&
+    g.stats[resType] >= (g.milestones[resType] + 1) * ECON.MILESTONE_STEP
+  ) {
+    g.milestones[resType]++;
+    const tier = g.milestones[resType];
 
-  if (resType === 'atk') {
-    ent.combat.auto.damage *= ECON.MILESTONE_ATK_MUL;
-  } else if (resType === 'armor') {
-    ent.combat.mods.armor += ECON.MILESTONE_ARMOR_ADD;
-  } else if (resType === 'speed') {
-    ent.motion.speed = Math.min(
-      ent.motion.speed * (1 + ECON.MILESTONE_SPEED_ADD),
-      ent.motion.baseSpeed * ECON.SPEED_TOTAL_CAP // mutlak tavan yine geçilemez
-    );
+    if (resType === 'atk') {
+      ent.combat.auto.damage *= ECON.MILESTONE_ATK_MUL;
+    } else if (resType === 'armor') {
+      ent.combat.mods.armor += ECON.MILESTONE_ARMOR_ADDS[tier - 1];
+    } else if (resType === 'speed') {
+      ent.motion.speed = Math.min(
+        ent.motion.speed * (1 + ECON.MILESTONE_SPEED_ADD),
+        ent.motion.baseSpeed * ECON.SPEED_TOTAL_CAP // mutlak tavan yine geçilemez
+      );
+    }
+
+    // Kalıcı görsel işaret: sim {type, tier} etiketi yazar, yorumunu render bilir (§8b/9)
+    const aura = ent.render.auras?.find((a) => a.type === resType);
+    if (aura) aura.tier = tier;
+    else ent.render.auras?.push({ type: resType, tier });
+    world.bus.emit('pickup.milestone', { id: ent.id, x: ent.transform.x, y: ent.transform.y, resType, tier });
   }
-
-  // Kalıcı görsel işaret: sim etiketi yazar, yorumunu render bilir (§8b/9)
-  ent.render.auras?.push(resType);
-  world.bus.emit('pickup.milestone', { id: ent.id, x: ent.transform.x, y: ent.transform.y, resType });
 }
 
-/** Ganimet Kesesi: Yankı Kartı — açanın SINIFINA uygun kart, yoksa +20 XP (PLAN §9). */
+/** Ganimet Kesesi: Yankı Kartı — açanın SINIFINA uygun kart, yoksa +20 XP (PLAN §9).
+ *  unique kartın (girdap, zehirli_kenar, yanki_becerisi) ikinci kopyası boşa gider —
+ *  açanın build'inde zaten olan unique kart seçilmez; uygun kart kalmazsa +20 XP. */
 function openBag(world, ent, res) {
   let cardId = res.loot.cardId ?? null; // elit kesede sabit Destansı
-  if (!cardId && res.loot.build?.length) {
+  if (cardId) {
+    const c = CARDS.find((k) => k.id === cardId);
+    if (c?.unique && ent.progress.build.includes(cardId)) cardId = null; // ikinci kopya boşa gitmesin
+  } else if (res.loot.build?.length) {
     const uygun = res.loot.build.filter((id) => {
       const c = CARDS.find((k) => k.id === id);
-      return c && (!c.classId || c.classId === ent.classId);
+      return c && (!c.classId || c.classId === ent.classId) && !(c.unique && ent.progress.build.includes(id));
     });
     if (uygun.length) cardId = uygun[Math.floor(world.rng() * uygun.length)];
   }

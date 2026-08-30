@@ -51,10 +51,14 @@ export function progressionSystem(world) {
   }
 }
 
-/** 3 kartlık teklif: nadirlik ağırlıklı, tekrarsız; sınıf kartları filtreli. */
+/** 3 kartlık teklif: nadirlik ağırlıklı, tekrarsız; sınıf kartları filtreli.
+ *  unique kartların (girdap, zehirli_kenar, yanki_becerisi) ikinci kopyası hiçbir
+ *  şey vermez — build'de olan unique kart havuza hiç girmez. */
 function rollOffer(world, ent) {
   const offer = [];
-  const pool = CARDS.filter((c) => !c.classId || c.classId === ent.classId);
+  const pool = CARDS.filter(
+    (c) => (!c.classId || c.classId === ent.classId) && !(c.unique && ent.progress.build.includes(c.id))
+  );
   const totalW = (c) => RARITY[c.rarity].weight;
   for (let i = 0; i < XP.CARD_CHOICES && pool.length > 0; i++) {
     let sum = 0;

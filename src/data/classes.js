@@ -15,7 +15,11 @@ export const CLASSES = {
     charFolder: 'BlueNinja', // lobi karakter önizlemesi
     botSprites: ['ninjaRed', 'ninjaGray'],
     pickupBonus: 'armor', // uzmanlık: zırh pickup'ı ona +2 verir (×2 etki)
-    auto: { type: 'melee', damage: 8, range: 24, arc: Math.PI * 1.1, cooldown: 0.55, swingTime: 0.18 },
+    // damage 8 → 10 ve range 24 → 26: buff (kullanıcı isteği) — zırh taban oranı
+    // düzeltmesi zırh istifini kırpınca Cengâver'in tank kimliği zayıfladı; açık
+    // bu iki dokunuşla telafi edildi. balance.mjs (120 maç) kalibrasyonu:
+    // cd 0.52 + range 26 → %57 (band aşıldı, geri çekildi); bu hali ~%52 (%50-55 bandı)
+    auto: { type: 'melee', damage: 10, range: 26, arc: Math.PI * 1.1, cooldown: 0.55, swingTime: 0.18 },
     // leapRange: rakibe atlama arama menzili — bu menzildeki en yakın CANLI rakip
     // (oyuncu/bot; MOB DEĞİL) varsa atılma onun o anki konumuna kilitlenir.
     // cooldown 2.2 → 3.0: rakibe atlama beceriyi belirgin güçlendirdi (denge: balance.mjs)
@@ -26,7 +30,7 @@ export const CLASSES = {
       skillName: 'Atılma',
       skillDesc: 'Rakibe atlar; rakip yoksa ileri atılır · 3 sn',
       skillIcon: 'pack/Items/Weapons/Ninjaku/Sprite.png',
-      perk: 'Zırh toplaması ×2 etki',
+      perk: 'ARMOR toplaması ×2 etki',
     },
   },
   nisanci: {
@@ -48,7 +52,7 @@ export const CLASSES = {
       skillName: 'Şaşmaz Ok',
       skillDesc: 'Hedefi takip eder, ASLA ıskalamaz · 2.5× hasar · 8 sn',
       skillIcon: 'pack/HUD/Arrow.png',
-      perk: 'Saldırı toplaması ×2 etki',
+      perk: 'AD toplaması ×2 etki',
     },
   },
   ocakci: {

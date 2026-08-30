@@ -133,18 +133,26 @@ export function createHud() {
         } else {
           zoneChip.style.display = 'none';
         }
-        // Pickup bonusları GERÇEK stat değerleriyle: ⚔ saldırı % (pickup çarpanından),
-        // 🛡 toplam zırh (pickup + kart), 💨 hız bonusu % (temel hıza göre).
-        // Sayaç eşik ödülüne (20) ulaşan tür ALTIN renge döner — usta işareti.
+        // Pickup bonusları GERÇEK stat değerleriyle ve standart terim+simge diliyle:
+        // ⚔ AD % (pickup çarpanından), 🛡 ARMOR toplamı (pickup + kart),
+        // 👢 SPEED bonusu % (temel hıza göre) — yerdeki çizme pickup'ıyla aynı dil.
+        // Eşik KADEMESİ (her 5 pickup'ta bir) roma rakamıyla yazılır; son kademede
+        // (4 × 5 = 20) tür tam ALTIN renge döner — usta işareti.
         const st = player.gather.stats;
+        const ms = player.gather.milestones;
         const atkPct = Math.round((Math.pow(ECON.ATK_DMG_MUL, st.atk) - 1) * 100);
         const spdPct = Math.round((player.motion.speed / player.motion.baseSpeed - 1) * 100);
-        const gild = (reached, txt) =>
-          reached ? `<span style="color:#ffd75e;text-shadow:0 0 6px #ffd75e99">${txt}</span>` : txt;
+        const ROMAN = ['', 'I', 'II', 'III', 'IV'];
+        const gild = (tier, txt) => {
+          if (tier >= ECON.MILESTONE_TIERS)
+            return `<span style="color:#ffd75e;text-shadow:0 0 6px #ffd75e99">${txt} ${ROMAN[tier]}</span>`;
+          if (tier > 0) return `${txt} <span style="color:#ffd75e">${ROMAN[tier]}</span>`;
+          return txt;
+        };
         matEl.innerHTML = [
-          gild(st.atk >= ECON.MILESTONE_COUNT, `⚔ +%${atkPct}`),
-          gild(st.armor >= ECON.MILESTONE_COUNT, `🛡 ${player.combat.mods.armor}`),
-          gild(st.speed >= ECON.MILESTONE_COUNT, `💨 +%${spdPct}`),
+          gild(ms.atk, `⚔AD +%${atkPct}`),
+          gild(ms.armor, `🛡ARMOR ${player.combat.mods.armor}`),
+          gild(ms.speed, `👢SPEED +%${spdPct}`),
         ].join(' · ');
       }
       if (match) {

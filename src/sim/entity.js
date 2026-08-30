@@ -36,7 +36,8 @@ export function createPlayer(world, classId, x, y, opts = {}) {
     },
     gather: {
       stats: { atk: 0, armor: 0, speed: 0, herb: 0 }, // ömürlük pickup sayaçları (HUD + eşik ödülleri)
-      milestones: { atk: false, armor: false, speed: false }, // eşik ödülü tür başına BİR kez
+      milestones: { atk: 0, armor: 0, speed: 0 }, // ulaşılan eşik KADEMESİ (0..MILESTONE_TIERS; her kademe bir kez)
+      armorFromPickups: 0, // pickup kaynaklı zırh toplamı (ARMOR_PICKUP_CAP'te durur; kart/eşik zırhı dahil değil)
       potMax: ECON.POT_MAX, // güncel pot kapasitesi (POT_UPGRADE_AT bitkide POT_MAX_UPGRADED olur)
       pots: 1, // maça 1 potla başlanır
       channel: null, // aktifken {type:'focus', t, duration} — kanal artık YALNIZ yoğunlaşma için
@@ -46,7 +47,7 @@ export function createPlayer(world, classId, x, y, opts = {}) {
     },
     // Oyuncuda input/'tan, botta aiBotSystem'den dolar — sim için fark yok (§4)
     input: { moveX: 0, moveY: 0, wantSkill: false, wantCards: false, pickCard: -1, wantGather: false, wantPot: false },
-    // auras: eşik ödülü etiketleri ('atk'/'armor'/'speed') — sim YAZAR ama YORUMLAMAZ (§8b/9)
+    // auras: eşik ödülü etiketleri ({type:'atk'|'armor'|'speed', tier:1..4}) — sim YAZAR ama YORUMLAMAZ (§8b/9)
     render: { sprite: opts.sprite ?? cls.sprite, animState: 'idle', auras: [] },
   };
   addEntity(world, ent);

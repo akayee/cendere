@@ -35,7 +35,6 @@ export const SHEETS = {
   swordItem: 'pack/Items/Weapons/Sword/Sprite.png',
   shieldFx: 'pack/FX/Magic/Shield/SpriteSheetBlue.png',
   lifePot: 'pack/Items/Potion/LifePot.png',
-  kunai: 'pack/HUD/Kunai.png',
   floor: 'pack/Backgrounds/Tilesets/TilesetFloor.png',
   field: 'pack/Backgrounds/Tilesets/TilesetField.png',
   water: 'pack/Backgrounds/Tilesets/TilesetWater.png',
@@ -83,12 +82,50 @@ export const PROPS = {
 // renderer'da ayrı katmanda süzülerek YAVAŞÇA döner (spin: true olanlar) —
 // y-sıralı dünya objelerinden görsel olarak ayrık dursun diye.
 export const RESOURCE_PROPS = {
-  atk: { sheet: 'swordItem', x: 0, y: 0, w: 6, h: 17, spin: true }, // saldırı = kılıç
-  armor: { sheet: 'shieldFx', x: 0, y: 0, w: 24, h: 26, spin: true }, // zırh = kalkan (büyü kalkanının ilk karesi)
+  atk: { sheet: 'swordItem', x: 0, y: 0, w: 6, h: 17, spin: true }, // AD = kılıç (AD kartlarıyla aynı dil)
+  armor: { sheet: 'shieldFx', x: 0, y: 0, w: 24, h: 26, spin: true }, // ARMOR = kalkan
   herb: { sheet: 'lifePot', x: 0, y: 0, w: 9, h: 11, spin: true }, // +1 pot = pot şişesi
-  speed: { sheet: 'kunai', x: 0, y: 0, w: 16, h: 16, spin: true }, // hız = kunai (Seri Adım kartıyla aynı dil)
+  speed: { sheet: 'bootGen', x: 0, y: 0, w: 12, h: 12, spin: true }, // SPEED = çizme (HUD 👢 ve SPEED kartlarıyla aynı dil)
   kese: { sheet: 'chest', x: 0, y: 0, w: 16, h: 16, spin: false }, // Ganimet Kesesi (sandık) — dönmez, sadece süzülür
 };
+
+// --- Kod-çizim sprite: ÇİZME (SPEED pickup'ı) --------------------------
+// NinjaAdventure paketinde çizme/ayakkabı sprite'ı YOK; SPEED'in görsel dili
+// (yerde çizme + HUD/kartlarda 👢) tutarlı kalsın diye küçük pikselli bir çizme
+// silüeti BİR KEZ offscreen canvas'a basılır ve normal sheet gibi kullanılır
+// (mobil perf: her karede path çizimi yerine tek drawImage). main.js yüklemede
+// images sözlüğüne 'bootGen' anahtarıyla ekler.
+export function makeBootSprite() {
+  // Piksel haritası: o=koyu kontur, b=deri, h=parlak vurgu, s=taban
+  const PALETTE = { o: '#3b2314', b: '#9c672f', h: '#d69a55', s: '#26170a' };
+  const ROWS = [
+    '............',
+    '.oooo.......',
+    '.obbho......',
+    '.obbho......',
+    '.obbho......',
+    '.obbbo......',
+    '.obbbooo....',
+    '.obbbbbbo...',
+    '.obbbbbbbo..',
+    '.osssssssso.',
+    '..oooooooo..',
+    '............',
+  ];
+  const c = document.createElement('canvas');
+  c.width = 12;
+  c.height = 12;
+  const ctx = c.getContext('2d');
+  ROWS.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      const color = PALETTE[row[x]];
+      if (!color) continue;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  });
+  return c;
+}
 
 // --- Karakter animasyonları -------------------------------------------
 // SeparateAnim düzeni: 16x16 kareler, sütun = yön (down, up, left, right).

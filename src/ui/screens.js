@@ -1,6 +1,7 @@
 // Lobi (sınıf seçimi) ve maç sonu ekranları (PLAN §2 maç akışı).
 
 import { CLASSES } from '../data/classes.js';
+import { openCardCatalog } from './cardCatalog.js';
 
 const WRAP_STYLE = {
   position: 'fixed',
@@ -25,7 +26,9 @@ export function showLobby(onStart) {
     `<div style="font:bold 44px Georgia,serif;letter-spacing:8px;color:#ffd75e;text-shadow:0 0 24px #ffb54566">CENDERE</div>` +
     `<div style="font:13px sans-serif;opacity:0.7;margin:6px 0 26px">Son kalan kazanır. Cendere daralıyor.</div>` +
     `<div id="lobby-classes" style="display:flex;gap:14px"></div>` +
-    `<div id="lobby-start" style="margin-top:30px;padding:12px 46px;border-radius:8px;background:linear-gradient(160deg,#ffd75e,#c98a2e);color:#221a08;font:bold 17px sans-serif;cursor:pointer;box-shadow:0 4px 16px #0009">MAÇA BAŞLA</div>`;
+    `<div id="lobby-start" style="margin-top:30px;padding:12px 46px;border-radius:8px;background:linear-gradient(160deg,#ffd75e,#c98a2e);color:#221a08;font:bold 17px sans-serif;cursor:pointer;box-shadow:0 4px 16px #0009">MAÇA BAŞLA</div>` +
+    // İkincil buton: altın dilinin soluk/çerçeveli hali — kart kataloğunu açar
+    `<div id="lobby-cards" style="margin-top:12px;padding:9px 34px;border-radius:8px;background:rgba(255,215,94,0.08);border:1px solid rgba(255,215,94,0.45);color:#ffd75e;font:bold 13px sans-serif;letter-spacing:1px;cursor:pointer">KARTLAR</div>`;
 
   const classes = el.querySelector('#lobby-classes');
   let selected = 'cengaver';
@@ -43,7 +46,7 @@ export function showLobby(onStart) {
     card.innerHTML =
       charImg +
       `<div style="font:bold 16px Georgia,serif">${cls.name}</div>` +
-      `<div style="font:bold 10px monospace;color:#8cd9ff;margin:4px 0 8px">❤ ${cls.hp} · 🏃 ${cls.speed}</div>` +
+      `<div style="font:bold 10px monospace;color:#8cd9ff;margin:4px 0 8px">❤ ${cls.hp} · 👢 SPEED ${cls.speed}</div>` +
       `<div style="text-align:left;background:rgba(0,0,0,0.25);border-radius:6px;padding:6px 8px;margin-bottom:6px">` +
       `<div style="font:bold 11px sans-serif;color:#e8dcb8">⚔ ${f.autoName} <span style="opacity:0.6;font-weight:normal">(otomatik)</span></div>` +
       `<div style="font:10px sans-serif;opacity:0.75;line-height:1.35;margin-top:2px">${f.autoDesc}</div>` +
@@ -83,6 +86,11 @@ export function showLobby(onStart) {
   el.querySelector('#lobby-start').addEventListener('pointerdown', () => {
     el.remove();
     onStart(selected);
+  });
+  // Kart kataloğu: lobinin üstünde tam ekran overlay (oyun henüz başlamadı)
+  el.querySelector('#lobby-cards').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    openCardCatalog();
   });
   document.body.appendChild(el);
 }

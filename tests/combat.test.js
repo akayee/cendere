@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createWorld } from '../src/sim/world.js';
 import { createPlayer, createMob, createDummy } from '../src/sim/entity.js';
 import { step } from '../src/sim/pipeline.js';
+import { applyDamage } from '../src/sim/systems/combatSystem.js';
 import { CLASSES } from '../src/data/classes.js';
 import { COMBAT } from '../src/data/balance.js';
 
@@ -137,6 +138,27 @@ describe('combatSystem', () => {
     const lost = 1000 - dummy.health.hp;
     expect(lost).toBeGreaterThanOrEqual(total * 0.85);
     expect(lost).toBeLessThanOrEqual(total * 1.2);
+  });
+
+  it('zırh istifi vuruşu 1\'e sabitleyemez: ham hasarın en az %30\'u iner (regresyon: "Cengâver 1 vuruyor")', () => {
+    const { world, player, cx, cy } = setup();
+    const foe = createPlayer(world, 'nisanci', cx + 500, cy); // menzil dışı — elle vurulur
+    foe.combat.mods.armor = 30; // maç boyu zırh pickup'ı istiflemiş rakip senaryosu
+    const raw = player.combat.auto.damage; // Cengâver savuruş hasarı (9)
+    applyDamage(world, foe, raw, player);
+    const dealt = foe.health.maxHp - foe.health.hp;
+    // Eski davranış: max(1, 9 − 30) = 1. Yeni: taban oranı — anlamlı hasar iner.
+    expect(dealt).toBe(Math.max(1, Math.round(raw * COMBAT.MIN_DAMAGE_RATIO)));
+    expect(dealt).toBeGreaterThan(1);
+  });
+
+  it('düşük zırhta formül aynen işler: hasar = güç − zırh (taban oranı devreye girmez)', () => {
+    const { world, player, cx, cy } = setup();
+    const foe = createPlayer(world, 'nisanci', cx + 500, cy);
+    foe.combat.mods.armor = 2;
+    const raw = player.combat.auto.damage;
+    applyDamage(world, foe, raw, player);
+    expect(foe.health.maxHp - foe.health.hp).toBe(raw - 2);
   });
 
   it('oyuncu ölünce maç biter (BR: ölüm kalıcı)', () => {

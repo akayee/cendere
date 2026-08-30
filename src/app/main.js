@@ -9,7 +9,7 @@ import { step } from '../sim/pipeline.js';
 import { isOutsideCendere } from '../sim/zone.js';
 import { createKeyboardInput } from '../input/keyboardInput.js';
 import { createTouchInput } from '../input/touchInput.js';
-import { SHEETS } from '../render/atlasData.js';
+import { SHEETS, makeBootSprite } from '../render/atlasData.js';
 import { loadSheets } from '../render/spriteAtlas.js';
 import { createCamera, snapCamera, followCamera, addShake } from '../render/camera.js';
 import { createRenderer } from '../render/renderer.js';
@@ -47,6 +47,9 @@ const params = new URLSearchParams(location.search);
 async function boot() {
   const sfx = createSfx();
   const [images] = await Promise.all([loadSheets(SHEETS), sfx.load()]);
+  // Kod-çizim sprite'lar: pack'te karşılığı olmayan görseller (SPEED çizmesi)
+  // bir kez basılıp normal sheet gibi sözlüğe eklenir
+  images.set('bootGen', makeBootSprite());
   showLobby((classId) => startMatch(images, sfx, classId));
 }
 
@@ -174,7 +177,7 @@ function startMatch(images, sfx, classId) {
   world.bus.on('dummy.broken', (e) => effects.spawnText(e.x, e.y - 4, 'KIRILDI', '#9aa5b1'));
   world.bus.on('dummy.repaired', (e) => effects.spawnText(e.x, e.y - 4, 'ONARILDI', '#8cf58c'));
   // Temas toplaması: pickup etkisi anında işler, uçan yazı etkiyi söyler
-  const RES_NAMES = { atk: 'SALDIRI+', armor: 'ZIRH+', herb: 'POT+', speed: 'HIZ+' };
+  const RES_NAMES = { atk: 'AD+', armor: 'ARMOR+', herb: 'POT+', speed: 'SPEED+' };
   world.bus.on('gather.done', (e) => {
     effects.spawnText(e.x, e.y - 6, RES_NAMES[e.resType] ?? '+', '#a8e6a0');
     effects.spawnPoof(e.x, e.y);
@@ -182,9 +185,9 @@ function startMatch(images, sfx, classId) {
   });
   // Eşik ödülü (20 pickup): patlama HERKESE görünür; banner + ses yalnız kendimize
   const MILESTONE_INFO = {
-    atk: { name: 'SALDIRI USTASI', color: '#ff7a3d' },
-    armor: { name: 'ZIRH USTASI', color: '#9db8d9' },
-    speed: { name: 'HIZ USTASI', color: '#cfeeff' },
+    atk: { name: 'AD USTASI', color: '#ff7a3d' },
+    armor: { name: 'ARMOR USTASI', color: '#9db8d9' },
+    speed: { name: 'SPEED USTASI', color: '#cfeeff' },
   };
   world.bus.on('pickup.milestone', (e) => {
     const info = MILESTONE_INFO[e.resType];
@@ -192,7 +195,9 @@ function startMatch(images, sfx, classId) {
     effects.spawnMilestoneBurst(e.x, e.y, info.color);
     effects.spawnText(e.x, e.y - 14, info.name, info.color);
     if (e.id === player.id) {
-      banner.show(info.name, info.color);
+      // Kademe banner'da roma rakamıyla okunur: 'AD USTASI II' gibi (e.tier: 1..4)
+      const tierTxt = ['', ' I', ' II', ' III', ' IV'][e.tier] ?? '';
+      banner.show(info.name + tierTxt, info.color);
       addShake(camera, 2);
       sfx.play('levelup');
     }
