@@ -1,10 +1,12 @@
 // Build sonrası budama: dist/pack içinden OYUNUN KULLANDIĞI dosyalar dışındakileri
 // siler (paket 50MB+; oyun ~2-3MB'lık dilim kullanıyor). npm run build bunu çağırır.
+// Ayrıca dist/sw.js'teki __BUILD__ placeholder'ına build sürümünü yazar (SW cache adı).
 
-import { readdirSync, statSync, rmSync, unlinkSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-const DIST_PACK = new URL('../dist/pack', import.meta.url).pathname;
+const DIST = new URL('../dist', import.meta.url).pathname;
+const DIST_PACK = join(DIST, 'pack');
 
 // Kullanılan yolların ön ekleri (SHEETS + kart/lobi ikonları + sesler)
 const KEEP = [
@@ -62,3 +64,11 @@ function walk(dir) {
 
 walk(DIST_PACK);
 console.log(`prune-dist: ${kept} dosya tutuldu, ${removed} dosya silindi`);
+
+// --- SW cache sürümü: bundle hash'inden (dist/index.html'deki index-XXXX.js adı)
+// türetilir; bulunamazsa build zamanı kullanılır. Her deploy → yeni cache adı →
+// sw.js'in activate adımı eski cache'leri siler, cihazlar yeni sürümü görür.
+const build = readFileSync(join(DIST, 'index.html'), 'utf8').match(/index-([\w-]+)\.js/)?.[1] ?? Date.now().toString(36);
+const swPath = join(DIST, 'sw.js');
+writeFileSync(swPath, readFileSync(swPath, 'utf8').replaceAll('__BUILD__', build));
+console.log(`prune-dist: sw.js cache sürümü → cendere-${build}`);

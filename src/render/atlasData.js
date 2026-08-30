@@ -32,6 +32,10 @@ export const SHEETS = {
   dragon: 'pack/Actor/Monsters/Dragon/SpriteSheet.png',
   flam: 'pack/Actor/Monsters/Flam/SpriteSheet.png',
   chest: 'pack/Items/Treasure/LittleTreasureChest.png',
+  swordItem: 'pack/Items/Weapons/Sword/Sprite.png',
+  shieldFx: 'pack/FX/Magic/Shield/SpriteSheetBlue.png',
+  lifePot: 'pack/Items/Potion/LifePot.png',
+  kunai: 'pack/HUD/Kunai.png',
   floor: 'pack/Backgrounds/Tilesets/TilesetFloor.png',
   field: 'pack/Backgrounds/Tilesets/TilesetField.png',
   water: 'pack/Backgrounds/Tilesets/TilesetWater.png',
@@ -75,12 +79,15 @@ export const PROPS = {
   grassTuft: { sheet: 'nature', x: 80, y: 160, w: 16, h: 16, anchorX: 8, anchorY: 14 },
 };
 
-// Toplanabilir kaynaklar (sim resType → sprite). Süslerden görsel olarak ayrık.
+// Yerdeki pickup'lar (sim resType → sembol). Her sembol ETKİSİNİ anlatır ve
+// renderer'da ayrı katmanda süzülerek YAVAŞÇA döner (spin: true olanlar) —
+// y-sıralı dünya objelerinden görsel olarak ayrık dursun diye.
 export const RESOURCE_PROPS = {
-  wood: { sheet: 'nature', x: 96, y: 128, w: 32, h: 32, anchorX: 16, anchorY: 29 }, // genç ağaç
-  ore: { sheet: 'nature', x: 272, y: 272, w: 16, h: 16, anchorX: 8, anchorY: 13 }, // maden taşı
-  herb: { sheet: 'nature', x: 96, y: 176, w: 16, h: 16, anchorX: 8, anchorY: 14 }, // şifa çiçeği
-  kese: { sheet: 'chest', x: 0, y: 0, w: 16, h: 16, anchorX: 8, anchorY: 13 }, // Ganimet Kesesi (sandık)
+  atk: { sheet: 'swordItem', x: 0, y: 0, w: 6, h: 17, spin: true }, // saldırı = kılıç
+  armor: { sheet: 'shieldFx', x: 0, y: 0, w: 24, h: 26, spin: true }, // zırh = kalkan (büyü kalkanının ilk karesi)
+  herb: { sheet: 'lifePot', x: 0, y: 0, w: 9, h: 11, spin: true }, // +1 pot = pot şişesi
+  speed: { sheet: 'kunai', x: 0, y: 0, w: 16, h: 16, spin: true }, // hız = kunai (Seri Adım kartıyla aynı dil)
+  kese: { sheet: 'chest', x: 0, y: 0, w: 16, h: 16, spin: false }, // Ganimet Kesesi (sandık) — dönmez, sadece süzülür
 };
 
 // --- Karakter animasyonları -------------------------------------------

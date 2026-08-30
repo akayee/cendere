@@ -1,120 +1,162 @@
 import { describe, it, expect } from 'vitest';
 import { createWorld } from '../src/sim/world.js';
-import { createPlayer, createMob, createResource } from '../src/sim/entity.js';
+import { createPlayer, createMob, createResource, createLootBag } from '../src/sim/entity.js';
 import { step } from '../src/sim/pipeline.js';
 import { applyDamage } from '../src/sim/systems/combatSystem.js';
-import { ECON, MAP, ZONE } from '../src/data/balance.js';
-import { isWild } from '../src/sim/zone.js';
+import { ECON, COMBAT } from '../src/data/balance.js';
 
-function setup() {
+function setup(classId = 'cengaver') {
   const world = createWorld(999);
   const cx = world.map.widthPx / 2;
   const cy = world.map.heightPx / 2;
-  const player = createPlayer(world, 'cengaver', cx, cy);
+  const player = createPlayer(world, classId, cx, cy);
   return { world, player, cx, cy };
 }
 
 const TICKS = (sec) => Math.ceil(sec * 60) + 2;
 
-describe('gatherSystem — kanal + kilit', () => {
-  it('OTOMATİK toplama: menzilde dururken kanal kendiliğinden başlar', () => {
+describe('gatherSystem — temasla anında toplama', () => {
+  it('üstüne gelinen pickup ANINDA toplanır: durmak/kanal/kilit yok', () => {
     const { world, player, cx, cy } = setup();
-    const res = createResource(world, 'wood', cx + 10, cy);
-    step(world); // hiçbir input yok — sadece duruyor
-    expect(player.gather.channel?.type).toBe('resource');
-    expect(res.lockedBy).toBe(player.id);
-  });
-
-  it('pot doluyken bitki OTOMATİK toplanmaz (israf koruması)', () => {
-    const { world, player, cx, cy } = setup();
-    player.gather.pots = 3;
-    createResource(world, 'herb', cx + 10, cy);
+    const res = createResource(world, 'atk', cx + 8, cy);
+    player.input.moveX = 1; // yürürken bile toplar
+    let done = null;
+    world.bus.on('gather.done', (e) => (done = e));
     step(world);
-    expect(player.gather.channel).toBeNull();
-  });
-
-  it('kanal tamamlanınca malzeme verir, kaynak kalkar ve sonra yeniden doğar', () => {
-    const { world, player, cx, cy } = setup();
-    const res = createResource(world, 'wood', cx + 10, cy);
-    const startResCount = world.resources.length;
-
-    player.input.wantGather = true;
-    step(world);
-    expect(player.gather.channel).not.toBeNull();
-    expect(res.lockedBy).toBe(player.id);
-
-    for (let i = 0; i < TICKS(ECON.GATHER_TIME); i++) step(world);
-    expect(player.gather.wood).toBeGreaterThan(0);
+    expect(done).not.toBeNull();
+    expect(done.resType).toBe('atk');
     expect(world.entities.has(res.id)).toBe(false);
-    expect(world.resources.length).toBe(startResCount - 1);
+    expect(player.gather.channel).toBeNull(); // kanal hiç açılmadı
+  });
 
+  it('temas mesafesi dışındaki pickup toplanmaz', () => {
+    const { world, player, cx, cy } = setup();
+    const reach = player.body.radius + 4 + ECON.PICKUP_PAD;
+    createResource(world, 'atk', cx + reach + 6, cy);
+    step(world);
+    expect(world.resources.length).toBe(1); // duruyor
+    expect(player.gather.stats.atk).toBe(0);
+  });
+
+  it('atk pickup: saldırı hasarı ×1.04, sayaç artar', () => {
+    const { world, player, cx, cy } = setup('ocakci'); // uzmanlık atk DEĞİL
+    const base = player.combat.auto.damage;
+    createResource(world, 'atk', cx + 8, cy);
+    step(world);
+    expect(player.combat.auto.damage).toBeCloseTo(base * ECON.ATK_DMG_MUL, 5);
+    expect(player.gather.stats.atk).toBe(1);
+  });
+
+  it('armor pickup: anında +1 zırh', () => {
+    const { world, player, cx, cy } = setup('ocakci');
+    createResource(world, 'armor', cx + 8, cy);
+    step(world);
+    expect(player.combat.mods.armor).toBe(ECON.ARMOR_PER_PICKUP);
+    expect(player.gather.stats.armor).toBe(1);
+  });
+
+  it('herb pickup: +1 pot; pot DOLUYKEN toplanmaz, yerde kalır', () => {
+    const { world, player, cx, cy } = setup('cengaver');
+    player.gather.pots = ECON.POT_MAX - 1;
+    createResource(world, 'herb', cx + 8, cy);
+    step(world);
+    expect(player.gather.pots).toBe(ECON.POT_MAX);
+
+    const res2 = createResource(world, 'herb', cx + 8, cy);
+    for (let i = 0; i < 30; i++) step(world);
+    expect(world.entities.has(res2.id)).toBe(true); // yerde kaldı
+    expect(player.gather.pots).toBe(ECON.POT_MAX);
+  });
+
+  it('speed pickup: +%3 hız, üst sınır toplam +%30 (sonrası yerde kalır)', () => {
+    const { world, player, cx, cy } = setup();
+    const base = player.motion.speed;
+    createResource(world, 'speed', cx + 8, cy);
+    step(world);
+    expect(player.motion.speed).toBeCloseTo(base * (1 + ECON.SPEED_PER_PICKUP), 5);
+    expect(player.gather.stats.speed).toBe(1);
+
+    // Cap: 10 pickup'tan sonrası alınmaz
+    const capCount = Math.round(ECON.SPEED_PICKUP_CAP / ECON.SPEED_PER_PICKUP);
+    player.gather.stats.speed = capCount;
+    const res2 = createResource(world, 'speed', cx + 8, cy);
+    for (let i = 0; i < 30; i++) step(world);
+    expect(world.entities.has(res2.id)).toBe(true); // yerde kaldı
+    expect(player.gather.stats.speed).toBe(capCount);
+  });
+
+  it('hız kartları + speed pickup üst üste binse de toplam hız tavanı aşılamaz', () => {
+    const { world, player, cx, cy } = setup();
+    player.motion.speed = player.motion.baseSpeed * ECON.SPEED_TOTAL_CAP; // kartlarla tavana dayandı
+    createResource(world, 'speed', cx + 8, cy);
+    step(world);
+    expect(player.motion.speed).toBeLessThanOrEqual(player.motion.baseSpeed * ECON.SPEED_TOTAL_CAP + 1e-9);
+  });
+
+  it('sınıf uzmanlığı: kendi türündeki pickup etkisi ×2 (Cengâver=armor, Nişancı=atk, Ocakçı=herb)', () => {
+    // Cengâver: zırh +2
+    const a = setup('cengaver');
+    createResource(a.world, 'armor', a.cx + 8, a.cy);
+    step(a.world);
+    expect(a.player.combat.mods.armor).toBe(ECON.ARMOR_PER_PICKUP * 2);
+
+    // Nişancı: hasar ×1.04²
+    const b = setup('nisanci');
+    const baseDmg = b.player.combat.auto.damage;
+    createResource(b.world, 'atk', b.cx + 8, b.cy);
+    step(b.world);
+    expect(b.player.combat.auto.damage).toBeCloseTo(baseDmg * ECON.ATK_DMG_MUL * ECON.ATK_DMG_MUL, 5);
+
+    // Ocakçı: +2 pot
+    const c = setup('ocakci');
+    c.player.gather.pots = 0;
+    createResource(c.world, 'herb', c.cx + 8, c.cy);
+    step(c.world);
+    expect(c.player.gather.pots).toBe(2);
+  });
+
+  it('toplanan kaynak yeniden doğar (respawnQueue)', () => {
+    const { world, player, cx, cy } = setup();
+    createResource(world, 'armor', cx + 8, cy);
+    step(world);
+    expect(world.resources.length).toBe(0);
+    // Oyuncu uzaklaşsın ki yeniden doğan pickup'ı anında yutmasın
+    player.transform.x = player.transform.prevX = cx + 300;
     for (let i = 0; i < TICKS(ECON.RESPAWN_TIME); i++) step(world);
-    expect(world.resources.length).toBe(startResCount);
+    expect(world.resources.length).toBe(1);
+    expect(world.resources[0].resType).toBe('armor');
   });
 
-  it('hasar kanalı bozar; savaş hali geçince oto-toplama yeniden başlar', () => {
+  it('savaşın ortasında bile normal pickup toplanır (yalnız kese bekler)', () => {
+    const { world, player, cx, cy } = setup('ocakci');
+    player.combat.inCombatT = COMBAT.IN_COMBAT_TIME; // az önce vuruştu
+    createResource(world, 'atk', cx + 8, cy);
+    step(world);
+    expect(player.gather.stats.atk).toBe(1);
+  });
+
+  it('Ganimet Kesesi: savaş halindeyken AÇILMAZ, çatışmadan 0.5 sn sonra temasla açılır', () => {
     const { world, player, cx, cy } = setup();
-    const res = createResource(world, 'ore', cx + 10, cy);
-    const mob = createMob(world, 'slime', cx + 400, cy); // uzakta, karışmasın
+    const victim = createPlayer(world, 'cengaver', cx + 400, cy);
+    createLootBag(world, victim);
+    const kese = world.resources.find((r) => r.resType === 'kese');
+    kese.transform.x = cx + 8;
+    kese.transform.y = cy;
+    victim.transform.x = victim.transform.prevX = cx - 700; // kurban sahneden çekilsin
 
-    step(world); // otomatik kanal başlar
-    expect(res.lockedBy).toBe(player.id);
-    for (let i = 0; i < 60; i++) step(world); // ~1 sn ilerleme birikir
-    expect(player.gather.channel.t).toBeGreaterThan(0.5);
-
-    let broken = false;
-    world.bus.on('gather.broken', () => (broken = true));
-    applyDamage(world, player, 3, mob);
+    let opened = null;
+    world.bus.on('kese.opened', (e) => (opened = e));
+    player.combat.inCombatT = COMBAT.IN_COMBAT_TIME; // tam şimdi çatıştı
     step(world);
-    expect(broken).toBe(true); // kanal kırıldı...
-    expect(player.gather.ore).toBe(0); // ...malzeme yok...
-    expect(player.gather.channel).toBeNull(); // savaş halindeyken oto-restart YOK (spam önlemi)
+    expect(opened).toBeNull(); // savaşın ortasında kazara açılmadı
 
-    // Savaş hali (3 sn) geçince dururken kendiliğinden yeniden başlar
-    for (let i = 0; i < 60 * 3.5; i++) step(world);
-    expect(player.gather.channel?.type).toBe('resource');
+    // LOOT_DELAY dolunca üstünde durmak yeter
+    for (let i = 0; i < TICKS(COMBAT.LOOT_DELAY + 0.2) && !opened; i++) step(world);
+    expect(opened).not.toBeNull();
+    expect(opened.id).toBe(player.id);
   });
 
-  it('hasar + kaçış: kilit düşer, kaynak gaspa açık kalır', () => {
-    const { world, player, cx, cy } = setup();
-    const res = createResource(world, 'ore', cx + 10, cy);
-    const mob = createMob(world, 'slime', cx + 400, cy);
-    step(world);
-    applyDamage(world, player, 3, mob);
-    player.input.moveX = 1; // vurulan oyuncu kaçıyor
-    step(world);
-    expect(player.gather.channel).toBeNull();
-    expect(res.lockedBy).toBe(0);
-  });
-
-  it('hareket kanalı bozar', () => {
-    const { world, player, cx, cy } = setup();
-    createResource(world, 'wood', cx + 10, cy);
-    player.input.wantGather = true;
-    step(world);
-    player.input.moveX = 1;
-    step(world);
-    expect(player.gather.channel).toBeNull();
-  });
-
-  it('kilitli kaynağa ikinci kişi kanal açamaz', () => {
-    const { world, player, cx, cy } = setup();
-    player.combat.auto = { ...player.combat.auto, damage: 0 }; // PvP gürültüsü olmasın
-    const res = createResource(world, 'wood', cx + 10, cy);
-    player.input.wantGather = true;
-    step(world);
-    expect(res.lockedBy).toBe(player.id);
-
-    const rival = createPlayer(world, 'cengaver', cx + 16, cy);
-    rival.combat.auto = { ...rival.combat.auto, damage: 0 };
-    rival.input.wantGather = true;
-    step(world);
-    // Rakip kaynağı alamaz; (canı tam olduğundan yoğunlaşma da başlamaz)
-    expect(rival.gather.channel).toBeNull();
-    expect(res.lockedBy).toBe(player.id);
-  });
-
-  it('yoğunlaşma: kaynak yokken kanal can doldurur, hasar bozar', () => {
+  it('yoğunlaşma: kanal can doldurur; hasar bozar (kanal altyapısı focus için kalır)', () => {
     const { world, player } = setup();
     player.health.hp = 50;
     player.input.wantGather = true;
@@ -130,7 +172,18 @@ describe('gatherSystem — kanal + kilit', () => {
     expect(player.gather.channel).toBeNull();
   });
 
-  it('pot: tüketir, zamana yayarak doldurur, üst sınır 3', () => {
+  it('yoğunlaşma: hareket bozar', () => {
+    const { world, player } = setup();
+    player.health.hp = 50;
+    player.input.wantGather = true;
+    step(world);
+    expect(player.gather.channel?.type).toBe('focus');
+    player.input.moveX = 1;
+    step(world);
+    expect(player.gather.channel).toBeNull();
+  });
+
+  it('pot: tüketir, zamana yayarak doldurur, üst sınır 3 (mekanik değişmedi)', () => {
     const { world, player } = setup();
     player.health.hp = 40;
     player.gather.pots = 2;
@@ -142,59 +195,5 @@ describe('gatherSystem — kanal + kilit', () => {
     const before = player.health.hp;
     for (let i = 0; i < TICKS(ECON.POT_DURATION); i++) step(world);
     expect(player.health.hp).toBeGreaterThan(before + 20); // ~30 can
-
-    player.gather.pots = ECON.POT_MAX;
-    const { cx, cy } = { cx: player.transform.x, cy: player.transform.y };
-    createResource(world, 'herb', cx + 10, cy);
-    player.input.wantGather = true;
-    step(world);
-    for (let i = 0; i < TICKS(ECON.GATHER_TIME); i++) step(world);
-    expect(player.gather.pots).toBe(ECON.POT_MAX); // taşma yok
-  });
-
-  it('otomatik işleme: 5 cevher → +1 zırh, 5 kereste → hasar ×1.02', () => {
-    const { world, player, cx, cy } = setup();
-    const baseDmg = player.combat.auto.damage;
-    player.gather.ore = 4;
-    player.gather.wood = 4;
-    createResource(world, 'ore', cx + 10, cy);
-    player.input.wantGather = true;
-    step(world);
-    for (let i = 0; i < TICKS(ECON.GATHER_TIME); i++) step(world);
-    expect(player.gather.ore).toBeGreaterThanOrEqual(5);
-    expect(player.combat.mods.armor).toBe(1);
-
-    createResource(world, 'wood', player.transform.x + 10, player.transform.y);
-    player.input.wantGather = true;
-    step(world);
-    for (let i = 0; i < TICKS(ECON.GATHER_TIME); i++) step(world);
-    expect(player.combat.auto.damage).toBeCloseTo(baseDmg * ECON.WOOD_DMG_MUL, 5);
-  });
-
-  it('kendi GZ\'nde verim ×1, dışarıda XP ve verim ×2', () => {
-    const { world, player, cx, cy } = setup();
-    // Kendi üssü tam altında: içeride toplarsa ×1
-    world.gzones.push({ x: cx, y: cy, r: ZONE.PERSONAL_R, ownerId: player.id });
-    expect(isWild(world, player)).toBe(false);
-    createResource(world, 'wood', cx + 10, cy);
-    step(world);
-    for (let i = 0; i < TICKS(ECON.GATHER_TIME); i++) step(world);
-    expect(player.gather.wood).toBe(1);
-
-    // Üs dışında: verim ×2
-    const wildX = cx + 300;
-    player.transform.x = player.transform.prevX = wildX;
-    expect(isWild(world, player)).toBe(true);
-    createResource(world, 'wood', wildX + 10, cy);
-    for (let i = 0; i < TICKS(ECON.GATHER_TIME) + 60; i++) step(world);
-    expect(player.gather.wood).toBe(1 + ZONE.WILD_YIELD_MULT);
-
-    // Üs dışında mob: XP ×2
-    const events = [];
-    world.bus.on('xp.gained', (e) => events.push(e));
-    const mob = createMob(world, 'slime', wildX, cy + 10);
-    mob.health.hp = 1;
-    for (let i = 0; i < 120 && !events.length; i++) step(world);
-    expect(events[0].amount).toBe(12 * ZONE.WILD_XP_MULT);
   });
 });

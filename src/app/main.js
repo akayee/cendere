@@ -1,12 +1,12 @@
 // Composition root: katmanları kurar ve kablolar (ARCHITECTURE.md §2).
 // Akış: lobi (sınıf seç) → maç → ölüm/zafer ekranı → yeni seed'le tekrar.
 
-import { MAP, ZONE, xpForLevel } from '../data/balance.js';
+import { MAP, xpForLevel } from '../data/balance.js';
 import { PHASES, MATCH_END } from '../data/phases.js';
 import { createWorld } from '../sim/world.js';
 import { spawnMatch } from '../sim/spawn.js';
 import { step } from '../sim/pipeline.js';
-import { isWild } from '../sim/zone.js';
+import { isOutsideCendere } from '../sim/zone.js';
 import { createKeyboardInput } from '../input/keyboardInput.js';
 import { createTouchInput } from '../input/touchInput.js';
 import { SHEETS } from '../render/atlasData.js';
@@ -32,6 +32,10 @@ import { createSfx } from '../audio/sfx.js';
 import { startLoop } from './gameLoop.js';
 
 const ZOOM = 3;
+// Backing-store çözünürlüğüne üst sınır (render sabiti): büyük tabletlerde
+// (örn. 2560×1600 × dpr) ~4M piksellik 2D canvas her karede dolduruluyordu —
+// mobil GPU'da lag'ın kök nedeni. CSS canvas'ı %100 gerdiği için görüntü ölçeklenir.
+const MAX_CANVAS_PIXELS = 1_300_000;
 const params = new URLSearchParams(location.search);
 
 async function boot() {
@@ -42,20 +46,29 @@ async function boot() {
 
 function startMatch(images, sfx, classId) {
   const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // alpha:false — opak canvas kompozisyonu mobilde belirgin ucuz (renderer aynı
+  // context'i alır; ilk çağrının seçeneği geçerlidir)
+  const ctx = canvas.getContext('2d', { alpha: false });
 
-  function resize() {
-    canvas.width = Math.round(window.innerWidth * dpr);
-    canvas.height = Math.round(window.innerHeight * dpr);
-  }
-  resize();
-  window.addEventListener('resize', resize);
+  // Ölçek = min(dpr, piksel bütçesine sığdıran katsayı). dpr yerine HER yerde bu kullanılır.
+  const computeScale = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    return Math.min(dpr, Math.sqrt(MAX_CANVAS_PIXELS / (window.innerWidth * window.innerHeight)));
+  };
+  let scale = computeScale();
+  canvas.width = Math.round(window.innerWidth * scale);
+  canvas.height = Math.round(window.innerHeight * scale);
+  window.addEventListener('resize', () => {
+    scale = computeScale();
+    canvas.width = Math.round(window.innerWidth * scale);
+    canvas.height = Math.round(window.innerHeight * scale);
+    camera.zoom = ZOOM * scale; // kamera zoom'u ölçekle tutarlı kalır
+  });
 
   // --- Sim (seed URL'den gelebilir; restart yeni seed üretir — app katmanı, izinli)
   const seed = Number(params.get('s')) || MAP.SEED;
   const world = createWorld(seed);
-  const player = spawnMatch(world, classId); // halkadaki kendi üssünde doğar
+  const player = spawnMatch(world, classId); // doğum halkasındaki noktasında doğar
   const fastForward = Number(params.get('t')) || 0; // dev: maç saatini ileri sar
   if (fastForward > 0) world.match.t = fastForward;
 
@@ -80,7 +93,7 @@ function startMatch(images, sfx, classId) {
   createMuteButton(sfx);
 
   // --- Render + efektler
-  const camera = createCamera(ZOOM * dpr);
+  const camera = createCamera(ZOOM * scale);
   snapCamera(camera, player.transform.x, player.transform.y);
   const effects = createEffects();
   const renderer = createRenderer(canvas, images, world.map, effects);
@@ -133,6 +146,9 @@ function startMatch(images, sfx, classId) {
       addShake(camera, 1.5);
       cardIndicator.setPending(e.pendingCards);
       sfx.play('levelup');
+      // Kart şeridi KENDİLİĞİNDEN belirir: wantCards intent'i kuyruğa girer,
+      // sim cards.offered yayınlar, şerit üstte açılır (oyun karartılmaz)
+      if (e.pendingCards > 0) cardsQueued = true;
     }
   });
   world.bus.on('cards.offered', (e) => {
@@ -150,9 +166,10 @@ function startMatch(images, sfx, classId) {
   });
   world.bus.on('dummy.broken', (e) => effects.spawnText(e.x, e.y - 4, 'KIRILDI', '#9aa5b1'));
   world.bus.on('dummy.repaired', (e) => effects.spawnText(e.x, e.y - 4, 'ONARILDI', '#8cf58c'));
-  const RES_NAMES = { wood: 'Kereste', ore: 'Cevher', herb: 'Pot' };
+  // Temas toplaması: pickup etkisi anında işler, uçan yazı etkiyi söyler
+  const RES_NAMES = { atk: 'SALDIRI+', armor: 'ZIRH+', herb: 'POT+', speed: 'HIZ+' };
   world.bus.on('gather.done', (e) => {
-    effects.spawnText(e.x, e.y - 6, `+${e.amount} ${RES_NAMES[e.resType]}`, '#a8e6a0');
+    effects.spawnText(e.x, e.y - 6, RES_NAMES[e.resType] ?? '+', '#a8e6a0');
     effects.spawnPoof(e.x, e.y);
     if (e.id === player.id) sfx.play('gather');
   });
@@ -161,10 +178,6 @@ function startMatch(images, sfx, classId) {
     if (e.id === player.id && e.reason === 'hasar' && e.progress > 0.4) {
       effects.spawnText(player.transform.x, player.transform.y - 14, 'BOZULDU!', '#ff9f43');
     }
-  });
-  world.bus.on('material.processed', (e) => {
-    effects.spawnText(e.x, e.y - 16, e.text, '#ffd75e');
-    if (e.id === player.id) sfx.play('process');
   });
   world.bus.on('focus.tick', (e) => effects.spawnText(e.x + 6, e.y - 8, '+' + e.amount, '#7ee8a0'));
   world.bus.on('pot.used', (e) => {
@@ -208,21 +221,6 @@ function startMatch(images, sfx, classId) {
     addShake(camera, 2);
     sfx.play('phase');
   });
-  world.bus.on('zone.leftGZ', (e) => {
-    if (e.id === player.id) banner.show('ÜSSÜNDEN AYRILDIN — KORUMA YOK', '#ff9f43');
-  });
-  world.bus.on('zone.enteredGZ', (e) => {
-    if (e.id === player.id && !player.zone.exiled) banner.show('ÜSSÜNDESİN — GÜVENDE', '#8cf58c');
-  });
-  world.bus.on('zone.exiled', (e) => {
-    if (e.id === player.id) banner.show('SÜRGÜN — GZ SENİ DIŞARI ATIYOR', '#ff6b6b');
-  });
-  world.bus.on('gz.burn', (e) => {
-    if (e.id === player.id) effects.spawnText(e.x, e.y - 6, String(e.amount), '#ffb35a');
-  });
-  world.bus.on('zone.exileLifted', (e) => {
-    if (e.id === player.id) banner.show('SÜRGÜN KALKTI', '#8cf58c');
-  });
   world.bus.on('match.ended', (e) => {
     sfx.play(e.win ? 'win' : 'lose');
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
@@ -237,7 +235,6 @@ function startMatch(images, sfx, classId) {
 
   let lastTime = performance.now();
   let prevAlive = Infinity;
-  let tintWild = false;
 
   startLoop({
     update() {
@@ -277,7 +274,7 @@ function startMatch(images, sfx, classId) {
       effects.update(frameDt);
       followCamera(camera, player.transform.x, player.transform.y, world.map, canvas.width, canvas.height);
       renderer.render(world, camera, alpha, timeSec, canvas.width, canvas.height);
-      drawJoystick(ctx, touch, dpr);
+      drawJoystick(ctx, touch, scale);
 
       // Şarj varsa buton hazır görünür (Yankı Becerisi ile 2 şarj olabilir)
       skillButton.setCooldown(
@@ -290,15 +287,8 @@ function startMatch(images, sfx, classId) {
       contextButton.setMode(mode);
       potButton.setCount(player.gather.pots);
 
-      // Tehlike tonu: kendi üssünün dışındaysan (histerezisli — sınırda titremez)
-      {
-        const gz = world.gzones.find((g) => g.ownerId === player.id);
-        const r = gz ? gz.r * world.match.gzScale : 0;
-        const d = gz ? Math.hypot(player.transform.x - gz.x, player.transform.y - gz.y) : Infinity;
-        if (!tintWild && (r <= 2 || d > r + 8)) tintWild = true;
-        else if (tintWild && r > 2 && d < r - 8) tintWild = false;
-        dangerTint.set(tintWild);
-      }
+      // Tehlike tonu: cendere DIŞINDAYSAN (CSS geçişi yumuşatır)
+      dangerTint.set(isOutsideCendere(world, player.transform.x, player.transform.y));
       minimap.draw(world, player);
 
       const m = world.match;
@@ -312,14 +302,13 @@ function startMatch(images, sfx, classId) {
       hud.frame(
         player,
         xpForLevel(player.progress.level),
-        isWild(world, player),
+        isOutsideCendere(world, player.transform.x, player.transform.y),
         {
           t: m.t,
           phaseName: PHASES[m.phaseIndex].name,
           nextIn: next ? next.start - m.t : MATCH_END - m.t,
           alive,
-        },
-        ZONE.GZ_BUDGET
+        }
       );
     },
   });
@@ -330,7 +319,22 @@ boot().catch((err) => {
   console.error(err);
 });
 
-// PWA: service worker yalnızca production build'de (dev'de cache karışıklığı olmasın)
+// PWA: service worker yalnızca production build'de (dev'de cache karışıklığı olmasın).
+// Güncelleme akışı: yeni SW devralınca (controllerchange) sayfa BİR KEZ yenilenir —
+// kullanıcı siteyi açtığında yeni sürüm kendiliğinden gelir. Guard'lar:
+//  - ilk kurulumda (öncesinde controller yoktu) yenileme YOK — sayfa zaten ağdan geldi
+//  - reloaded bayrağı sonsuz reload döngüsünü keser
 if (!import.meta.env.DEV && 'serviceWorker' in navigator) {
+  let hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) {
+      hadController = true; // ilk kurulum (clients.claim) — yenileme gereksiz
+      return;
+    }
+    if (reloaded) return;
+    reloaded = true;
+    location.reload();
+  });
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }

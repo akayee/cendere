@@ -24,7 +24,8 @@ export const CARDS = [
   { id: 'keskin_kenar', name: 'Keskin Kenar', desc: '+3 saldırı hasarı', rarity: 'common', effect: { autoDamageAdd: 3 }, icon: 'pack/Items/Weapons/Sword/Sprite.png' },
   { id: 'hizli_bilek', name: 'Hızlı Bilek', desc: '%10 saldırı hızı', rarity: 'common', effect: { autoCooldownMul: 0.9 }, icon: 'pack/Items/Weapons/Sai/Sprite.png' },
   { id: 'uzun_kol', name: 'Uzun Kol', desc: '+4 saldırı menzili', rarity: 'common', effect: { autoRangeAdd: 4 }, icon: 'pack/Items/Weapons/Lance/Sprite.png' },
-  { id: 'deri_zirh', name: 'Deri Zırh', desc: '+1 zırh (her vuruşta daha az hasar)', rarity: 'common', effect: { armorAdd: 1 }, icon: { src: 'pack/FX/Magic/Shield/SpriteSheetBlue.png', x: 0, y: 0, w: 24, h: 26 } },
+  // +2: zırh pickup'ı zaten +1 verdiği için kart onun iki katı — nadirlik/etki oranı korunur
+  { id: 'deri_zirh', name: 'Deri Zırh', desc: '+2 zırh (her vuruşta daha az hasar)', rarity: 'common', effect: { armorAdd: 2 }, icon: { src: 'pack/FX/Magic/Shield/SpriteSheetBlue.png', x: 0, y: 0, w: 24, h: 26 } },
   { id: 'sicak_kan', name: 'Sıcak Kan', desc: 'Saniyede 0.6 can yenileme', rarity: 'common', effect: { regenAdd: 0.6 }, icon: 'pack/Items/Potion/Medipack.png' },
 
   // --- Nadir

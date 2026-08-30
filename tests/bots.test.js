@@ -1,27 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import { createWorld } from '../src/sim/world.js';
 import { createPlayer, createMob, createResource } from '../src/sim/entity.js';
-import { ZONE } from '../src/data/balance.js';
+import { SPAWN } from '../src/data/balance.js';
+import { step } from '../src/sim/pipeline.js';
+import { PHASES } from '../src/data/phases.js';
 
-/** Test yardımcısı: N bot, GZ halkasında kendi üsleriyle (eski spawnBots muadili). */
+/** Test yardımcısı: N bot, doğum halkasına dizilmiş (GZ yok — sadece konum). */
 function spawnBots(world, count) {
   const cx = world.map.widthPx / 2;
   const cy = world.map.heightPx / 2;
   for (let i = 0; i < count; i++) {
     const a = (i / Math.max(count, 3)) * Math.PI * 2 + 0.3;
-    const gx = cx + Math.cos(a) * ZONE.RING_RADIUS;
-    const gy = cy + Math.sin(a) * ZONE.RING_RADIUS;
-    const bot = createPlayer(world, ['cengaver', 'nisanci', 'ocakci'][i % 3], gx, gy, {
+    createPlayer(world, ['cengaver', 'nisanci', 'ocakci'][i % 3], cx + Math.cos(a) * SPAWN.RING_RADIUS, cy + Math.sin(a) * SPAWN.RING_RADIUS, {
       bot: true,
       personality: { aggro: 0.6, greed: 0.7 },
       name: 'TestBot' + i,
     });
-    world.gzones.push({ x: gx, y: gy, r: ZONE.PERSONAL_R, ownerId: bot.id });
   }
   world.match.playersTotal = count + 1;
 }
-import { step } from '../src/sim/pipeline.js';
-import { PHASES } from '../src/data/phases.js';
 
 function setup() {
   const world = createWorld(777);
@@ -59,37 +56,26 @@ describe('M6 — botlar, PvP, kese, T2', () => {
     expect(bot.progress.pendingCards).toBeLessThan(3);
   });
 
-  it('PvP: bot KENDİ üssündeyken vurulamaz, dışarıda vurulur', () => {
+  it('PvP her yerde açık: yan yana gelen oyuncular birbirini vurabilir (GZ koruması yok)', () => {
     const { world, player, cx, cy } = setup();
     spawnBots(world, 1);
     const bot = world.movers.find((m) => m.botAi);
-    const gz = world.gzones.find((g) => g.ownerId === bot.id);
-    // Bot kendi üssünün ortasında; oyuncu dibinde (oyuncunun üssü değil → koruma yok ona)
-    bot.transform.x = bot.transform.prevX = gz.x;
-    bot.transform.y = bot.transform.prevY = gz.y;
     bot.botAi.thinkT = 9999; // bot kıpırdamasın
     bot.input.moveX = 0;
     bot.input.moveY = 0;
-    player.transform.x = player.transform.prevX = gz.x + 12;
-    player.transform.y = player.transform.prevY = gz.y;
-    for (let i = 0; i < 90; i++) step(world);
-    expect(bot.health.hp).toBe(bot.health.maxHp); // üs koruması
-
-    // İkisini de üs dışına taşı (zindan tarafı)
     player.transform.x = player.transform.prevX = cx + 100;
     player.transform.y = player.transform.prevY = cy;
     bot.transform.x = bot.transform.prevX = cx + 112;
     bot.transform.y = bot.transform.prevY = cy;
     for (let i = 0; i < 90; i++) step(world);
-    expect(bot.health.hp).toBeLessThan(bot.health.maxHp); // artık vurulabilir
+    expect(bot.health.hp).toBeLessThan(bot.health.maxHp);
   });
 
-  it('ölen bot Ganimet Kesesi düşürür; kese kanalla açılır ve malzeme verir', () => {
+  it('ölen bot Ganimet Kesesi düşürür; kese TEMASLA açılır (Yankı Kartı / +20 XP)', () => {
     const { world, player, cx, cy } = setup();
     spawnBots(world, 2); // 2 bot: biri ölünce maç bitmesin
     const bot = world.movers.find((m) => m.botAi);
-    bot.gather.wood = 4;
-    bot.gather.ore = 2;
+    bot.progress.build = ['kalin_post'];
     bot.transform.x = bot.transform.prevX = cx + 500;
     bot.transform.y = bot.transform.prevY = cy;
     bot.health.hp = 1;
@@ -97,19 +83,22 @@ describe('M6 — botlar, PvP, kese, T2', () => {
     step(world);
     const kese = world.resources.find((r) => r.resType === 'kese');
     expect(kese).toBeDefined();
-    expect(kese.loot.wood).toBe(4);
+    expect(kese.loot.build).toContain('kalin_post');
 
-    // Oyuncu kesenin başına gidip açar (otomatik kanal)
+    // Oyuncu kesenin üstüne yürür: kanal yok, temas yeter
     player.transform.x = player.transform.prevX = kese.transform.x - 8;
     player.transform.y = player.transform.prevY = kese.transform.y;
     let opened = null;
     world.bus.on('kese.opened', (e) => (opened = e));
-    for (let i = 0; i < 60 * 3 && !opened; i++) step(world);
+    for (let i = 0; i < 60 * 2 && !opened; i++) step(world);
     expect(opened).not.toBeNull();
-    expect(player.gather.wood).toBeGreaterThanOrEqual(4);
+    // Cengâver kurbanın Kalın Post'unu alabilir (sınıfsız kart)
+    expect(opened.cardId).toBe('kalin_post');
+    expect(player.progress.build).toContain('kalin_post');
+    expect(world.resources.find((r) => r.resType === 'kese')).toBeUndefined(); // kese kalktı
   });
 
-  it('bot açık alandaki keseyi kendisi bulup AÇAR (takılma düzeltmesi)', () => {
+  it('bot açık alandaki keseyi kendisi bulup AÇAR', () => {
     const { world, cx, cy } = setup();
     spawnBots(world, 2);
     // İzole sahne: tüm mobları temizle (av, toplamayı bölmesin)
@@ -120,7 +109,6 @@ describe('M6 — botlar, PvP, kese, T2', () => {
     bot.transform.x = bot.transform.prevX = cx + 30;
     bot.transform.y = bot.transform.prevY = cy;
     const victim = world.movers.filter((m) => m.botAi)[1];
-    victim.gather.wood = 3;
     victim.transform.x = victim.transform.prevX = cx + 60;
     victim.transform.y = victim.transform.prevY = cy;
     victim.dead = true;
@@ -129,10 +117,9 @@ describe('M6 — botlar, PvP, kese, T2', () => {
     for (let i = 0; i < 60 * 12 && !opened; i++) step(world);
     expect(opened).not.toBeNull();
     expect(opened.id).toBe(bot.id);
-    expect(bot.gather.wood).toBeGreaterThanOrEqual(3);
   }, 20000);
 
-  it('bot kanaldayken karar sistemi kanalı bozmaz (kanal koruması)', () => {
+  it('bot kaynağın üstünden geçerek toplar: durmaz, kanallamaz, takılmaz', () => {
     const { world, cx, cy } = setup();
     spawnBots(world, 1);
     for (const m of world.movers) if (m.kind === 'mob') m.dead = true;
@@ -140,35 +127,16 @@ describe('M6 — botlar, PvP, kese, T2', () => {
     const bot = world.movers.find((m) => m.botAi);
     bot.transform.x = bot.transform.prevX = cx + 400;
     bot.transform.y = bot.transform.prevY = cy;
-    createResource(world, 'wood', cx + 410, cy);
-    // Kanal başlayana kadar bekle, sonra kanal boyunca hiç kırılmadığını doğrula
-    let started = false;
-    let broken = 0;
-    world.bus.on('gather.started', (e) => {
-      if (e.id === bot.id && e.resType === 'wood') started = true;
+    createResource(world, 'armor', cx + 440, cy);
+    let done = null;
+    world.bus.on('gather.done', (e) => {
+      if (e.id === bot.id) done = e;
     });
-    world.bus.on('gather.broken', (e) => {
-      if (e.id === bot.id) broken++;
-    });
-    let done = false;
-    world.bus.on('gather.done', () => (done = true));
-    for (let i = 0; i < 60 * 15 && !done; i++) step(world);
-    expect(started).toBe(true);
-    expect(done).toBe(true);
-    expect(broken).toBe(0);
-  }, 20000);
-
-  it('Sürgün bot KENDİ üssünde OTURMAZ: bütçesi bitince dışarı çıkar', () => {
-    const { world } = setup();
-    spawnBots(world, 1);
-    const bot = world.movers.find((m) => m.botAi);
-    const gz = world.gzones.find((g) => g.ownerId === bot.id);
-    bot.transform.x = bot.transform.prevX = gz.x;
-    bot.transform.y = bot.transform.prevY = gz.y;
-    bot.zone.gzBudget = 1; // birazdan Sürgün
-    for (let i = 0; i < 60 * 12; i++) step(world);
-    const d = Math.hypot(bot.transform.x - gz.x, bot.transform.y - gz.y);
-    expect(d).toBeGreaterThan(gz.r); // üssünden çıktı
+    for (let i = 0; i < 60 * 10 && !done; i++) step(world);
+    expect(done).not.toBeNull();
+    expect(done.resType).toBe('armor');
+    expect(bot.gather.stats.armor).toBe(1);
+    expect(bot.gather.channel).toBeNull(); // hiç kanal açılmadı
   }, 20000);
 
   it('geç oyunda (Son Cendere) botlar eşit güçteki rakibe de saldırır', () => {
@@ -176,14 +144,12 @@ describe('M6 — botlar, PvP, kese, T2', () => {
     spawnBots(world, 1);
     for (const m of world.movers) if (m.kind === 'mob') m.dead = true;
     step(world);
-    world.match.t = PHASES[3].start + 1; // Son Cendere: GZ yok
+    world.match.t = PHASES[3].start + 1; // Son Cendere
     const bot = world.movers.find((m) => m.botAi);
     bot.botAi.personality.aggro = 0.5;
     bot.transform.x = bot.transform.prevX = cx + 80;
     bot.transform.y = bot.transform.prevY = cy;
     player.combat.auto = { ...player.combat.auto, damage: 0 }; // insan susturuldu
-    const hp0 = bot.health.hp;
-    void hp0;
     for (let i = 0; i < 60 * 6 && player.health.hp === player.health.maxHp; i++) step(world);
     expect(player.health.hp).toBeLessThan(player.health.maxHp); // bot saldırdı
   }, 20000);

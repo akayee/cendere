@@ -1,63 +1,66 @@
-// Maç kurulumu ve mob doğumu — KİŞİSEL GZ + ZİNDAN modeli:
-// oyuncular harita kenarındaki GZ halkasında kendi üslerinde doğar,
-// merkez baştan itibaren kamplarla dolu bir zindandır.
+// Maç kurulumu ve mob doğumu: oyuncular harita kenarındaki doğum halkasına
+// eşit açılarla dizilir; merkez baştan itibaren kamplarla dolu bir zindandır.
+// (Kişisel GZ'ler kaldırıldı — doğum noktası yalnızca başlangıç konumudur.)
 
 import { range, pick } from '../core/rng.js';
-import { MAP, SPAWN, ECON, ZONE } from '../data/balance.js';
+import { distSq } from '../core/vec2.js';
+import { MAP, SPAWN, ECON } from '../data/balance.js';
 import { T1_WEIGHTS, T4_MOB, T4_PER_WAVE, T4_CAP, CAMPS } from '../data/mobs.js';
 import { CLASSES } from '../data/classes.js';
 import { createMob, createDummy, createResource, createPlayer } from './entity.js';
-import { isInAnyGZ } from './zone.js';
 
 const BOT_NAMES = [
   'Gölge', 'Kartal', 'Bozkurt', 'Şimşek', 'Kuzgun', 'Çakal',
   'Pusucu', 'Demirci', 'Yabani', 'Serçe', 'Poyraz', 'Dağcı',
 ];
 
+const PICKUP_TYPES = ['atk', 'armor', 'herb', 'speed'];
+
 /**
- * Maç kurulumu: insan + botlar GZ halkasına eşit açılarla dizilir; herkes
- * KENDİ GZ dairesinin ortasında doğar (üste 1 kukla + 1 kaynak). Zindan
- * (merkez) Hazırlık hedefine kadar kampla doldurulur. İnsanı döndürür.
+ * Maç kurulumu: insan + botlar doğum halkasına eşit açılarla dizilir (yanına
+ * 1 kukla + 1 rastgele pickup). Zindan (merkez) Hazırlık hedefine kadar kampla
+ * doldurulur. İnsanı döndürür; humanClassId null ise TÜM koltuklar bot olur
+ * (denge simülatörü — tools/balance.mjs).
  */
 export function spawnMatch(world, humanClassId) {
   const rng = world.rng;
   const cx = world.map.widthPx / 2;
   const cy = world.map.heightPx / 2;
-  const total = SPAWN.BOT_COUNT + 1;
+  const botsOnly = humanClassId == null;
+  const total = botsOnly ? SPAWN.BOT_COUNT : SPAWN.BOT_COUNT + 1;
   const classIds = Object.keys(CLASSES);
   const nameOffset = Math.floor(rng() * BOT_NAMES.length);
   const startAngle = range(rng, 0, Math.PI * 2);
+  const spawnPts = []; // T1 mobları doğum noktalarının dibine doğmasın
 
   let human = null;
   for (let i = 0; i < total; i++) {
     const a = startAngle + (i / total) * Math.PI * 2;
-    const gx = cx + Math.cos(a) * ZONE.RING_RADIUS;
-    const gy = cy + Math.sin(a) * ZONE.RING_RADIUS;
+    const gx = cx + Math.cos(a) * SPAWN.RING_RADIUS;
+    const gy = cy + Math.sin(a) * SPAWN.RING_RADIUS;
+    spawnPts.push({ x: gx, y: gy });
 
-    let ent;
-    if (i === 0) {
-      ent = createPlayer(world, humanClassId, gx, gy);
-      human = ent;
+    if (!botsOnly && i === 0) {
+      human = createPlayer(world, humanClassId, gx, gy);
     } else {
       const classId = classIds[i % classIds.length];
       const cls = CLASSES[classId];
-      ent = createPlayer(world, classId, gx, gy, {
+      createPlayer(world, classId, gx, gy, {
         bot: true,
         sprite: pick(rng, cls.botSprites),
         personality: { aggro: range(rng, 0.2, 1), greed: range(rng, 0.3, 1) },
         name: BOT_NAMES[(nameOffset + i) % BOT_NAMES.length],
       });
     }
-    world.gzones.push({ x: gx, y: gy, r: ZONE.PERSONAL_R, ownerId: ent.id });
 
-    // Üs donanımı: 1 antrenman kuklası + 1 rastgele kaynak (kendi GZ'nde, verim ×1)
+    // Başlangıç donanımı: 1 antrenman kuklası + 1 rastgele pickup yakında
     createDummy(world, gx + Math.cos(a) * 30, gy + Math.sin(a) * 30);
     const resA = a + Math.PI / 2;
-    createResource(world, pick(rng, ['wood', 'ore', 'herb']), gx + Math.cos(resA) * 28, gy + Math.sin(resA) * 28);
+    createResource(world, pick(rng, PICKUP_TYPES), gx + Math.cos(resA) * 28, gy + Math.sin(resA) * 28);
   }
   world.match.playersTotal = total;
 
-  // --- T1 moblar: her yerde (GZ daireleri hariç) — merkez zaten kamplarla dolu
+  // --- T1 moblar: her yerde (doğum noktaları hariç) — merkez zaten kamplarla dolu
   const bag = [];
   for (const { id, w } of T1_WEIGHTS) for (let i = 0; i < w; i++) bag.push(id);
   let placed = 0;
@@ -66,15 +69,16 @@ export function spawnMatch(world, humanClassId) {
     const x = range(rng, (MAP.BORDER + 2) * MAP.TILE, world.map.widthPx - (MAP.BORDER + 2) * MAP.TILE);
     const y = range(rng, (MAP.BORDER + 2) * MAP.TILE, world.map.heightPx - (MAP.BORDER + 2) * MAP.TILE);
     if (inLake(world.map, x, y)) continue;
-    if (isInAnyGZ(world, x, y, 30)) continue;
+    if (spawnPts.some((p) => distSq(p.x, p.y, x, y) < SPAWN.CLEAR_RADIUS * SPAWN.CLEAR_RADIUS)) continue;
     createMob(world, pick(rng, bag), x, y);
     placed++;
   }
 
-  // --- Vahşi kaynaklar
-  spawnResources(world, 'wood', ECON.WOOD_COUNT);
-  spawnResources(world, 'ore', ECON.ORE_COUNT);
+  // --- Pickup'lar: dört tür, dengeli havuz
+  spawnResources(world, 'atk', ECON.ATK_COUNT);
+  spawnResources(world, 'armor', ECON.ARMOR_COUNT);
   spawnResources(world, 'herb', ECON.HERB_COUNT);
+  spawnResources(world, 'speed', ECON.SPEED_COUNT);
 
   // --- Zindan baştan dolu: Hazırlık hedefine kadar kamp
   fillCampsToTarget(world);
@@ -84,7 +88,7 @@ export function spawnMatch(world, humanClassId) {
 
 /**
  * Tek kamp doğur: her zaman O ANKİ cendere çemberinin MERKEZ bandında (zindan),
- * kişisel GZ'lerden ve göllerden uzak. Evre ilerledikçe içerik güçlenir.
+ * göllerden uzak. Evre ilerledikçe içerik güçlenir.
  */
 export function spawnCamp(world, forcedKind = null) {
   const rng = world.rng;
@@ -99,7 +103,6 @@ export function spawnCamp(world, forcedKind = null) {
     const r = range(rng, maxR * CAMPS.RADIAL[0], maxR * CAMPS.RADIAL[1]);
     const x = cx + Math.cos(a) * r;
     const y = cy + Math.sin(a) * r;
-    if (isInAnyGZ(world, x, y, CAMPS.GZ_PAD)) continue; // üslerin dibinde kamp olmaz
     if (inLake(world.map, x, y)) continue;
 
     const [mobId, count, elite] = pick(rng, kinds);
@@ -169,7 +172,6 @@ function spawnResources(world, resType, count) {
     const y = range(rng, (MAP.BORDER + 2) * MAP.TILE, map.heightPx - (MAP.BORDER + 2) * MAP.TILE);
     if (inLake(map, x, y)) continue;
     if (nearSolid(world, x, y)) continue; // ağacın/kayanın üstüne kaynak doğmasın
-    if (isInAnyGZ(world, x, y, 12)) continue; // üslerin garanti kaynağı ayrı verildi
     createResource(world, resType, x, y);
     placed++;
   }

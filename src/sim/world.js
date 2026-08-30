@@ -29,8 +29,6 @@ export function createWorld(seed) {
     areas: [],
     /** mob kampları: {x, y, tier, memberIds} — üyesi yaşayan kamp "canlı"dır */
     camps: [],
-    /** kişisel GZ daireleri: {x, y, r, ownerId} — sahibi ölünce silinir */
-    gzones: [],
     /** katı statik gövdeler için geniş faz */
     staticHash: createSpatialHash(PHYS.CELL),
     map: null,
@@ -41,7 +39,6 @@ export function createWorld(seed) {
       phaseIndex: 0,
       phase: 'hazirlik',
       cendereR: 99999,
-      gzScale: 1, // kişisel GZ'lerin erime çarpanı (Sıkışma'da 1→0)
       damageAcc: 0,
       over: false,
     },

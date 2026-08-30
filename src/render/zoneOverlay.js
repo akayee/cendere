@@ -1,5 +1,5 @@
-// Cendere ve KİŞİSEL GZ görselleştirmesi: cendere dışı kızıl sisle örtülür;
-// kendi üssün parlak altın, diğerlerininki soluk çizilir.
+// Cendere görselleştirmesi: cendere dışı kızıl sisle örtülür, sınır nabız atar.
+// (Kişisel GZ çizimleri kaldırıldı — tek sınır cenderedir.)
 
 export function drawZones(ctx, world, view, timeSec) {
   const m = world.match;
@@ -20,25 +20,5 @@ export function drawZones(ctx, world, view, timeSec) {
     ctx.beginPath();
     ctx.arc(cx, cy, m.cendereR, 0, Math.PI * 2);
     ctx.stroke();
-  }
-
-  // --- Kişisel GZ'ler
-  for (const gz of world.gzones) {
-    const r = gz.r * m.gzScale;
-    if (r <= 3) continue;
-    if (gz.x + r < view.minX || gz.x - r > view.maxX || gz.y + r < view.minY || gz.y - r > view.maxY) continue;
-    const own = gz.ownerId === world.playerId;
-
-    ctx.beginPath();
-    ctx.arc(gz.x, gz.y, r, 0, Math.PI * 2);
-    ctx.fillStyle = own ? 'rgba(255, 215, 94, 0.08)' : 'rgba(255, 255, 255, 0.04)';
-    ctx.fill();
-    ctx.strokeStyle = own ? 'rgba(255, 215, 94, 0.85)' : 'rgba(255, 235, 170, 0.3)';
-    ctx.lineWidth = own ? 1.4 : 1;
-    ctx.setLineDash([6, 4]);
-    ctx.beginPath();
-    ctx.arc(gz.x, gz.y, r, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
   }
 }

@@ -1,4 +1,9 @@
 // Mobil beceri butonu (sağ alt). Tek aktif beceri tasarımı — PLAN.md §5/§9.
+// Boyut ekrana oranlı: küçük telefonda 64px taban, tablette 12vmin'e kadar büyür
+// (Samsung tablet "buton çok küçük" düzeltmesi). Diğer butonlar aynı ölçek dilini kullanır.
+
+// Ortak ölçek dili: beceri çapı — pot/context butonları konumlarını buna göre türetir
+export const SKILL_SIZE = 'clamp(64px, 12vmin, 112px)';
 
 export function createSkillButton(onPress) {
   const btn = document.createElement('div');
@@ -8,14 +13,17 @@ export function createSkillButton(onPress) {
     position: 'fixed',
     right: 'calc(24px + env(safe-area-inset-right, 0px))',
     bottom: 'calc(28px + env(safe-area-inset-bottom, 0px))',
-    width: '64px',
-    height: '64px',
+    width: SKILL_SIZE,
+    height: SKILL_SIZE,
     borderRadius: '50%',
     background: 'rgba(20,22,40,0.55)',
     border: '2px solid rgba(255,255,255,0.5)',
     color: '#fff',
-    font: '28px/60px sans-serif',
-    textAlign: 'center',
+    fontSize: 'clamp(28px, 5.5vmin, 52px)', // iç ikon çapla orantılı
+    fontFamily: 'sans-serif',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     userSelect: 'none',
     webkitUserSelect: 'none',
     touchAction: 'none',

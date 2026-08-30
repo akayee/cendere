@@ -1,4 +1,4 @@
-// Minimap (sağ üst): cendere + GZ çemberleri, göller, SEN ve SINIRLI istihbarat —
+// Minimap (sağ üst): cendere çemberi, göller, SEN ve SINIRLI istihbarat —
 // rakipler yalnızca yakındaysa görünür; Son Cendere'den itibaren herkes görünür
 // (tam bilgi BR gerilimini öldürür, finalde ise bulmayı garantiler).
 
@@ -52,18 +52,6 @@ export function createMinimap(map) {
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(cx, cy, m.cendereR * k, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      // Kişisel GZ'ler: kendi üssün parlak altın halka, diğerleri soluk nokta
-      for (const gz of world.gzones) {
-        const r = gz.r * m.gzScale;
-        if (r <= 3) continue;
-        const own = gz.ownerId === player.id;
-        ctx.strokeStyle = own ? 'rgba(255,215,94,0.95)' : 'rgba(255,235,170,0.4)';
-        ctx.lineWidth = own ? 1.4 : 0.8;
-        ctx.beginPath();
-        ctx.arc(gz.x * k, gz.y * k, Math.max(2, r * k), 0, Math.PI * 2);
         ctx.stroke();
       }
 

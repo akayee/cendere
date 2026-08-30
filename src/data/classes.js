@@ -1,4 +1,5 @@
 // Karakter sınıfları (PLAN §5). Üç sınıf da oynanabilir (M6).
+// pickupBonus: uzmanlık — o türdeki pickup'ın etkisini ×2 alır (temas toplaması)
 // auto.type: 'melee' (yay içi alan) | 'projectile' (mermi — engel arkasına işlemez)
 // skill.type: 'dash' (ileri atılma+hasar) | 'homingShot' (şaşmaz ok: hedef takipli, kaçırmaz) | 'burnArea' (yerde kalan alev)
 // flavor: lobi tanıtım metinleri — oynanışa etkisi yok, yalnızca UI
@@ -13,7 +14,7 @@ export const CLASSES = {
     sprite: 'ninja',
     charFolder: 'BlueNinja', // lobi karakter önizlemesi
     botSprites: ['ninjaRed', 'ninjaGray'],
-    gatherBonus: 'ore', // toplama uzmanlığı: madencilik ×2 hız
+    pickupBonus: 'armor', // uzmanlık: zırh pickup'ı ona +2 verir (×2 etki)
     auto: { type: 'melee', damage: 8, range: 24, arc: Math.PI * 1.1, cooldown: 0.55, swingTime: 0.18 },
     skill: { type: 'dash', speedMul: 4.6, duration: 0.16, cooldown: 2.2, damage: 12 },
     flavor: {
@@ -22,7 +23,7 @@ export const CLASSES = {
       skillName: 'Atılma',
       skillDesc: 'İleri atılır, yoldaki düşmanlara hasar verir · 2.2 sn',
       skillIcon: 'pack/Items/Weapons/Ninjaku/Sprite.png',
-      perk: 'Madencilik ×2 hız',
+      perk: 'Zırh toplaması ×2 etki',
     },
   },
   nisanci: {
@@ -30,12 +31,12 @@ export const CLASSES = {
     name: 'Nişancı',
     speed: 93, // kite bedava değil: Cengâver (95) açık alanda yavaşça kapatır
     radius: 5,
-    hp: 85,
+    hp: 80,
     sprite: 'hunter',
     charFolder: 'Hunter',
     botSprites: ['camoGreen', 'ninjaGreen'],
-    gatherBonus: 'wood', // kereste ×2 hız
-    auto: { type: 'projectile', damage: 7, range: 95, cooldown: 0.65, swingTime: 0.15, projSpeed: 230 },
+    pickupBonus: 'atk', // uzmanlık: saldırı pickup'ı etkisi ×2
+    auto: { type: 'projectile', damage: 7, range: 95, cooldown: 0.72, swingTime: 0.15, projSpeed: 230 },
     // Şaşmaz Ok: hedefi takip eder, KAÇIRMAZ (engel de durdurmaz) — bedeli uzun bekleme
     skill: { type: 'homingShot', cooldown: 8, damageMul: 2.5, projSpeedMul: 1.4, seekRange: 1.6 },
     flavor: {
@@ -44,7 +45,7 @@ export const CLASSES = {
       skillName: 'Şaşmaz Ok',
       skillDesc: 'Hedefi takip eder, ASLA ıskalamaz · 2.5× hasar · 8 sn',
       skillIcon: 'pack/HUD/Arrow.png',
-      perk: 'Kereste ×2 hız',
+      perk: 'Saldırı toplaması ×2 etki',
     },
   },
   ocakci: {
@@ -52,12 +53,12 @@ export const CLASSES = {
     name: 'Ocakçı',
     speed: 91,
     radius: 5,
-    hp: 100,
+    hp: 115,
     sprite: 'sorcerer',
     charFolder: 'SorcererOrange',
     botSprites: ['mageBlack', 'ninjaDark'],
-    gatherBonus: 'herb', // bitki verimi ×2
-    auto: { type: 'projectile', damage: 12, range: 95, cooldown: 1.0, swingTime: 0.2, projSpeed: 180 },
+    pickupBonus: 'herb', // uzmanlık: bitki pickup'ı +2 pot verir
+    auto: { type: 'projectile', damage: 13, range: 95, cooldown: 0.85, swingTime: 0.2, projSpeed: 190 },
     skill: { type: 'burnArea', cooldown: 5, radius: 24, dps: 14, areaDuration: 3, throwRange: 1.1 },
     flavor: {
       autoName: 'Büyü Topu',
@@ -65,7 +66,7 @@ export const CLASSES = {
       skillName: 'Alan Yakması',
       skillDesc: 'HEDEFİN altını 3 sn yakan alev çemberi fırlatır · 5 sn',
       skillIcon: 'pack/Items/Scroll/ScrollFire.png',
-      perk: 'Bitki/pot verimi ×2',
+      perk: 'Bitki toplaması ×2 pot',
     },
   },
 };

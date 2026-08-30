@@ -6,12 +6,10 @@ import { drawCharacter } from './animator.js';
 import { buildGroundCanvas, drawGround } from './tileRenderer.js';
 import { PROPS, RESOURCE_PROPS } from './atlasData.js';
 import { drawZones } from './zoneOverlay.js';
-import { lerp, distSq } from '../core/vec2.js';
-import { ECON } from '../data/balance.js';
-import { gzOf } from '../sim/zone.js';
+import { lerp } from '../core/vec2.js';
 
 export function createRenderer(canvas, images, map, effects) {
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { alpha: false }); // main ile aynı context (opak — mobilde ucuz)
   const groundCanvas = buildGroundCanvas(map, images);
 
   // Statik + süs çizim listesi bir kere kurulur: {def, x, y, sortY}
@@ -49,13 +47,10 @@ export function createRenderer(canvas, images, map, effects) {
       drawList.push(s);
     }
 
-    // Kaynaklar (toplanabilir entity'ler) y-sıralamaya katılır
-    for (const res of world.resources) {
-      const t = res.transform;
-      if (t.x < view.minX || t.x > view.maxX || t.y < view.minY || t.y > view.maxY) continue;
-      const def = RESOURCE_PROPS[res.resType];
-      if (def) drawList.push({ def, x: t.x, y: t.y, sortY: t.y, locked: res.lockedBy !== 0 });
-    }
+    // Pickup'lar: etkilerini anlatan, yerde süzülüp YAVAŞÇA dönen semboller.
+    // Döndükleri için y-sıralamaya girmezler; karakterlerin altında kalsınlar
+    // diye dünya objelerinden ÖNCE çizilirler (viewport culling aynen geçerli).
+    drawPickups(world, view, timeSec);
 
     // Hareketlileri araya y-sıralamayla kat
     for (const ent of world.movers) {
@@ -76,45 +71,6 @@ export function createRenderer(canvas, images, map, effects) {
           d.x, d.y, d.w, d.h,
           Math.round(item.x - d.anchorX), Math.round(item.y - d.anchorY), d.w, d.h
         );
-      }
-    }
-
-    // Menzildeki kaynaklara beyaz vurgu çerçevesi + verim etiketi (otomatik toplama işareti)
-    const player = world.entities.get(world.playerId);
-    if (player) {
-      const reach = ECON.GATHER_RANGE + player.body.radius;
-      for (const res of world.resources) {
-        if (res.lockedBy && res.lockedBy !== player.id) continue;
-        const rt = res.transform;
-        if (distSq(player.transform.x, player.transform.y, rt.x, rt.y) > reach * reach) continue;
-        const def = RESOURCE_PROPS[res.resType];
-        if (!def) continue;
-
-        const pulse = 0.55 + 0.35 * Math.sin(timeSec * 6);
-        ctx.strokeStyle = `rgba(255,255,255,${pulse})`;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(
-          Math.round(rt.x - def.anchorX) - 1.5,
-          Math.round(rt.y - def.anchorY) - 1.5,
-          def.w + 3,
-          def.h + 3
-        );
-
-        // Verim etiketi: kaynak SENİN üssünün içindeyse ×1, dışarıda ×2
-        const myGz = gzOf(world, player);
-        const rr = myGz ? myGz.r * world.match.gzScale : 0;
-        const inOwn = myGz && rr > 2 && distSq(rt.x, rt.y, myGz.x, myGz.y) <= rr * rr;
-        const amount = inOwn ? 1 : 2;
-        ctx.font = 'bold 7px monospace';
-        ctx.textAlign = 'center';
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        const label = '×' + amount;
-        const ly = rt.y - def.anchorY - 5;
-        ctx.strokeText(label, rt.x, ly);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(label, rt.x, ly);
-        ctx.textAlign = 'start';
       }
     }
 
@@ -160,7 +116,7 @@ export function createRenderer(canvas, images, map, effects) {
       }
     }
 
-    // Kanal ilerleme barı (toplama / yoğunlaşma)
+    // Kanal ilerleme barı (yalnız yoğunlaşma — toplama artık temasla anında)
     for (const ent of world.movers) {
       const ch = ent.gather?.channel;
       if (!ch) continue;
@@ -169,7 +125,7 @@ export function createRenderer(canvas, images, map, effects) {
       const frac = Math.min(1, ch.t / ch.duration);
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(t.x - w / 2, t.y - 24, w, 3);
-      ctx.fillStyle = ch.type === 'focus' ? '#7ee8a0' : '#e8c76e';
+      ctx.fillStyle = '#7ee8a0';
       ctx.fillRect(t.x - w / 2, t.y - 24, w * frac, 3);
     }
 
@@ -196,11 +152,37 @@ export function createRenderer(canvas, images, map, effects) {
     drawRivalArrows(ctx, world, cam, viewW, viewH);
   }
 
+  /** Pickup sembolleri: hafif yukarı-aşağı süzülme + ~0.8 rad/sn dönüş + yer gölgesi. */
+  function drawPickups(world, view, timeSec) {
+    for (const res of world.resources) {
+      const t = res.transform;
+      if (t.x < view.minX || t.x > view.maxX || t.y < view.minY || t.y > view.maxY) continue;
+      const def = RESOURCE_PROPS[res.resType];
+      if (!def) continue;
+
+      // Faz pozisyondan türetilir: semboller senkron dönmesin (deterministik, sim habersiz)
+      const phase = t.x * 0.7 + t.y * 1.3;
+      const bob = Math.sin(timeSec * 2 + phase) * 1.5;
+
+      // Yer gölgesi: süzülme yüksekliğiyle hafifçe nefes alır — yer hissi korunur
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.beginPath();
+      ctx.ellipse(t.x, t.y + 2, 5 - bob * 0.7, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.translate(t.x, t.y - def.h / 2 - 3 + bob); // dönüş merkezi = sembolün ortası
+      if (def.spin) ctx.rotate(timeSec * 0.8 + phase);
+      ctx.drawImage(images.get(def.sheet), def.x, def.y, def.w, def.h, -def.w / 2, -def.h / 2, def.w, def.h);
+      ctx.restore();
+    }
+  }
+
   /** Yakındaki (≤400) ama ekran dışındaki rakipler için kenar okları. */
   function drawRivalArrows(ctx, world, cam, viewW, viewH) {
     const me = world.entities.get(world.playerId);
     if (!me) return;
-    const s = cam.zoom / 3; // dpr ölçeği: ok cihaz pikselinde de aynı boyda görünsün
+    const s = cam.zoom / 3; // canvas ölçeği (dpr + piksel bütçesi): ok her cihazda aynı boyda görünsün
     const margin = 30 * s;
     for (const ent of world.movers) {
       if (ent.kind !== 'player' || ent.id === world.playerId || ent.dead) continue;

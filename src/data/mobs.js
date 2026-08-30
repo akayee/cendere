@@ -6,7 +6,7 @@ export const MOBS = {
     tier: 1,
     hp: 26,
     damage: 5,
-    xp: 12,
+    xp: 21,
     speed: 40,
     radius: 5,
     sprite: 'slime',
@@ -20,7 +20,7 @@ export const MOBS = {
     tier: 1,
     hp: 36,
     damage: 7,
-    xp: 15,
+    xp: 26,
     speed: 34,
     radius: 5,
     sprite: 'mushroom',
@@ -34,7 +34,7 @@ export const MOBS = {
     tier: 1,
     hp: 18,
     damage: 6,
-    xp: 13,
+    xp: 23,
     speed: 72,
     radius: 4,
     sprite: 'snake',
@@ -59,7 +59,7 @@ export const T2_MOBS = {
     tier: 2,
     hp: 85,
     damage: 12,
-    xp: 35,
+    xp: 60,
     speed: 62,
     radius: 6,
     sprite: 'cyclope',
@@ -73,7 +73,7 @@ export const T2_MOBS = {
     tier: 2,
     hp: 60,
     damage: 9,
-    xp: 28,
+    xp: 50,
     speed: 78,
     radius: 5,
     sprite: 'skull',
@@ -87,7 +87,7 @@ export const T2_MOBS = {
     tier: 2,
     hp: 55,
     damage: 6,
-    xp: 32,
+    xp: 55,
     speed: 82,
     radius: 5,
     sprite: 'spider',
@@ -106,7 +106,6 @@ export const T2_CAMPS = 6; // Genişleme'deki ilk kamp dalgası (her kampta 3 mo
 export const CAMPS = {
   RESPAWN: 55, // kesilen kampın yerine yenisinin gelme aralığı (sn) — uzun cooldown
   RADIAL: [0.05, 0.5], // kamp, cendere yarıçapının MERKEZ bandında doğar (zindan)
-  GZ_PAD: 90, // herhangi bir kişisel GZ'den en az bu kadar uzak
   TARGET: { hazirlik: 7, genisleme: 10, sikisma: 8, son: 3, aniolum: 0 }, // hedef canlı kamp
   // Evreye göre kamp içeriği: [mobId, üyeSayısı, elitMi] seçenekleri
   KINDS: {
@@ -138,7 +137,7 @@ export const T3_MOBS = {
     tier: 3,
     hp: 280,
     damage: 18,
-    xp: 100,
+    xp: 175,
     speed: 55,
     radius: 7,
     sprite: 'dragon',
@@ -157,7 +156,7 @@ export const T4_MOB = {
   tier: 4,
   hp: 130,
   damage: 14,
-  xp: 60,
+  xp: 105,
   speed: 108,
   radius: 5,
   sprite: 'flam',

@@ -1,10 +1,11 @@
 // Sanal joystick görseli. touchInput.state'i OKUR, ekran uzayında çizer.
 
-export function drawJoystick(ctx, touch, dpr) {
+export function drawJoystick(ctx, touch, scale) {
   const s = touch.state;
   if (!s.active) return;
 
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // scale = canvas backing-store ölçeği (dpr + piksel bütçesi) — CSS koordinatına çevirir
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
   // Dış çember
   ctx.strokeStyle = 'rgba(255,255,255,0.35)';

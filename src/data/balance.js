@@ -16,7 +16,7 @@ export const MAP = {
   LAKES: 4,
   DIRT_PATCHES: 10,
   BORDER: 2, // haritayı çevreleyen orman duvarı kalınlığı (tile)
-  GZ_RING_CLEAR: 70, // GZ halkası bandı (RING_RADIUS ± bu) engelsiz kalır (px)
+  RING_CLEAR: 70, // doğum halkası bandı (SPAWN.RING_RADIUS ± bu) engelsiz kalır (px)
 };
 
 export const PHYS = {
@@ -29,8 +29,8 @@ export const COMBAT = {
   KNOCKBACK: 7, // hasar alanın itilme mesafesi (dünya birimi)
   HURT_TIME: 0.18, // hasar sonrası beyaz yanıp sönme süresi (sn)
   DUMMY_REPAIR_TIME: 5, // kırılan kuklanın onarım bekleme süresi (sn)
-  IN_COMBAT_TIME: 3, // son hasardan sonra "savaşta" sayılma süresi (oto-toplama bekler)
-  LOOT_DELAY: 0.5, // Ganimet Kesesi bu kadar sonra açılabilir (kill sonrası hızlı loot)
+  IN_COMBAT_TIME: 3, // son hasardan sonra "savaşta" sayılma süresi (kese açılışı bekler)
+  LOOT_DELAY: 0.5, // Ganimet Kesesi çatışmadan bu kadar sonra açılabilir (kazara açılmasın)
 };
 
 // Zehir (PLAN §9 — Ultima usulü): hasarı küçük, asıl silahı İYİLEŞME KİLİDİ.
@@ -42,8 +42,10 @@ export const POISON = {
 };
 
 export const SPAWN = {
-  T1_COUNT: 30, // maç başı T1 mob sayısı (GZ'ler hariç her yerde)
+  T1_COUNT: 30, // maç başı T1 mob sayısı (doğum noktaları hariç her yerde)
   BOT_COUNT: 9, // maçı dolduran botlar (PLAN §10: koltuk doldurma)
+  RING_RADIUS: 620, // oyuncu doğum halkasının merkeze uzaklığı (merkez = zindan)
+  CLEAR_RADIUS: 40, // doğum noktalarının bu kadar yakınına mob doğmaz
 };
 
 export const XP = {
@@ -51,8 +53,9 @@ export const XP = {
   GROWTH: 18, // her seviyede eklenen ek gereksinim
   DUMMY_PER_HIT: 1, // kukla vuruşu başına XP (PLAN §4: mob XP'sinin ~⅓'ü)
   CARD_CHOICES: 3, // seviye başına sunulan kart sayısı
-  PVP_BASE: 25, // oyuncu kesmenin taban XP'si — her mobdan yüksek (PLAN §6)
-  PVP_PER_LEVEL: 10, // kurbanın seviyesi başına ek XP (gelişmiş avı değerli)
+  // Taban değerler ×2 Vahşi çarpanı kalktığı için ~×1.8 yükseltildi (tempo korunur)
+  PVP_BASE: 45, // oyuncu kesmenin taban XP'si — her mobdan yüksek (PLAN §6)
+  PVP_PER_LEVEL: 18, // kurbanın seviyesi başına ek XP (gelişmiş avı değerli)
 };
 
 /** Seviye n'den n+1'e geçiş için gereken XP */
@@ -61,16 +64,19 @@ export function xpForLevel(level) {
 }
 
 export const ECON = {
-  GATHER_TIME: 2.5, // kaynak toplama kanalı (sn)
-  KESE_TIME: 1.5, // Ganimet Kesesi açma kanalı — kısa ama savunmasız an (PLAN §9)
-  GATHER_RANGE: 14, // kaynağa bu kadar yakınken toplanabilir
-  RESPAWN_TIME: 35, // kaynak yeniden doğma süresi (sn) — Son Cendere'de kapanacak (M5)
-  WOOD_COUNT: 36, // haritadaki genç ağaç sayısı
-  ORE_COUNT: 28, // maden damarı
-  HERB_COUNT: 22, // şifa bitkisi
-  ORE_PER_ARMOR: 5, // 5 cevher → +1 zırh (otomatik işleme, PLAN §7)
-  WOOD_PER_DMG: 5, // 5 kereste → saldırı hasarı ×1.02
-  WOOD_DMG_MUL: 1.02,
+  // TEMAS TOPLAMASI: kaynaklar yerdeki pickup'lardır — üstüne gelen ANINDA toplar.
+  // Temas eşiği = gövde yarıçapı + kaynak yarıçapı + bu tolerans (5+4+2 ≈ 11 birim).
+  PICKUP_PAD: 2,
+  RESPAWN_TIME: 35, // kaynak yeniden doğma süresi (sn)
+  ATK_COUNT: 26, // haritadaki saldırı pickup'ı sayısı
+  ARMOR_COUNT: 24, // zırh pickup'ı
+  HERB_COUNT: 20, // şifa bitkisi (pot)
+  SPEED_COUNT: 16, // hız pickup'ı
+  ATK_DMG_MUL: 1.04, // atk pickup'ı: otomatik saldırı hasarı ×1.04 (anında, kalıcı)
+  ARMOR_PER_PICKUP: 1, // armor pickup'ı: anında +1 zırh
+  SPEED_PER_PICKUP: 0.03, // speed pickup'ı: kalıcı +%3 hareket hızı...
+  SPEED_PICKUP_CAP: 0.3, // ...pickup'lardan gelen toplam en fazla +%30 (sonrası yerde kalır)
+  SPEED_TOTAL_CAP: 1.5, // toplam hız çarpanı tavanı (kart + pickup üst üste binse de)
   POT_MAX: 3, // taşınabilir pot (PLAN §9)
   POT_HEAL_RATE: 12, // pot: saniyede can (2.5 sn'ye yayılır)
   POT_DURATION: 2.5,
@@ -80,18 +86,7 @@ export const ECON = {
   FOCUS_HEAL: 4, // ...bu kadar can verir; hasar/hareket bozar
 };
 
-// KİŞİSEL GZ modeli: her oyuncunun (bot dahil) harita kenarında halka üzerinde
-// kendi küçük güvenli dairesi vardır. Merkez = ZİNDAN (yoğun kamplar).
-export const ZONE = {
-  PERSONAL_R: 56, // kişisel GZ yarıçapı (küçük yuvarlak)
-  RING_RADIUS: 620, // GZ'lerin merkeze uzaklığı (haritanın çok dışında değil)
-  GZ_HEAL: 3, // kendi GZ'nde saniyede can dolumu ("gz can bassın")
-  WILD_XP_MULT: 2, // kendi GZ'n dışında her yer Vahşi: XP ×2
-  WILD_YIELD_MULT: 2, // ... kaynak verimi ×2
-  GZ_BUDGET: 120, // kişisel GZ süresi (sn) — içerideyken erir
-  GZ_REFILL_RATIO: 3, // dışarıda geçen her 3 sn → 1 sn GZ hakkı
-  EXILE_LIFT: 30, // Sürgün, bütçe bu seviyeye dolunca kalkar
+// Cendere (daralan çember) — kişisel GZ'ler kaldırıldı, tek tehlike bu.
+export const CENDERE = {
   DAMAGE_TICK: 0.5, // cendere hasarının uygulanma aralığı (sn)
-  EJECT_PUSH: 140, // Sürgünken GZ seni dışarı İTER (yürüme hızından yüksek — direnilemez)
-  OVERSTAY_DPS: 3, // itilirken içeride geçen her sn'nin yanma cezası
 };

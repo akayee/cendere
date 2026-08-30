@@ -1,8 +1,9 @@
 // Denge harness'i: insansız (yalnız bot) maçları hızlı koşturur, sınıf bazında
 // kazanma/kill/seviye istatistikleri basar. Kullanım: node tools/balance.mjs [maçSayısı]
+// Yeni mekaniklerle uyumlu: temasla anında toplama (kanal yok), GZ yok, pickup etkileri.
 
 import { createWorld } from '../src/sim/world.js';
-import { spawnInitialMobs, spawnBots } from '../src/sim/spawn.js';
+import { spawnMatch } from '../src/sim/spawn.js';
 import { step } from '../src/sim/pipeline.js';
 import { MATCH_END } from '../src/data/phases.js';
 
@@ -12,8 +13,7 @@ const S = (cls) => (stats[cls] ??= { win: 0, kills: 0, levelSum: 0, deaths: 0, a
 
 for (let m = 0; m < MATCHES; m++) {
   const world = createWorld(10000 + m * 7919);
-  spawnInitialMobs(world);
-  spawnBots(world, 9); // 3'er adet her sınıftan
+  spawnMatch(world, null); // insan yok: 9 bot, 3'er adet her sınıftan
   const bots = world.movers.filter((b) => b.botAi);
   const clsOf = new Map(bots.map((b) => [b.name, b.classId]));
 

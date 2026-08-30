@@ -5,7 +5,7 @@ import { step } from '../src/sim/pipeline.js';
 import { applyPoison, applyDamage } from '../src/sim/systems/combatSystem.js';
 import { applyCard } from '../src/sim/systems/progressionSystem.js';
 import { PHASES } from '../src/data/phases.js';
-import { xpForLevel, ECON } from '../src/data/balance.js';
+import { xpForLevel, ECON, XP } from '../src/data/balance.js';
 import { CARDS } from '../src/data/cards.js';
 
 function setup(seed = 4242) {
@@ -159,29 +159,33 @@ describe('M7 — Yankı Kartı sınıf uyumu ve hızlı loot', () => {
     expect(player.progress.build).not.toContain('catal_ok');
   });
 
-  it('kese, çatışmadan 0.5 sn sonra açılabilir; normal kaynak 3 sn bekler', async () => {
-    const { createLootBag } = await import('../src/sim/entity.js');
-    const { createResource } = await import('../src/sim/entity.js');
+  it('kese çatışmadan 0.5 sn sonra açılır; normal pickup savaşta bile toplanır', async () => {
+    const { createLootBag, createResource } = await import('../src/sim/entity.js');
     const { world, player, cx, cy } = setup();
     const victim = createPlayer(world, 'cengaver', cx + 300, cy);
     createLootBag(world, victim);
     const kese = world.resources.find((r) => r.resType === 'kese');
-    kese.transform.x = cx + 10;
+    kese.transform.x = cx + 6;
     kese.transform.y = cy;
-    createResource(world, 'wood', cx - 10, cy);
+    createResource(world, 'atk', cx - 6, cy);
 
+    let opened = null;
+    world.bus.on('kese.opened', (e) => {
+      if (e.id === player.id) opened = e;
+    });
     player.combat.inCombatT = 3; // az önce çatıştı
-    for (let i = 0; i < 45; i++) step(world); // 0.75 sn
-    expect(player.gather.channel?.type).toBe('resource');
-    const target = world.entities.get(player.gather.channel.targetId);
-    expect(target.resType).toBe('kese'); // kese açılıyor, odun DEĞİL
+    step(world);
+    expect(player.gather.stats.atk).toBe(1); // normal pickup savaşta da işler
+    expect(opened).toBeNull(); // kese henüz kapalı
+    for (let i = 0; i < 45 && !opened; i++) step(world); // 0.75 sn
+    expect(opened).not.toBeNull(); // 0.5 sn dolunca temasla açıldı
   });
 });
 
 describe('PvP XP', () => {
   it('oyuncu kesmek mobdan fazla XP verir ve kurbanın seviyesiyle artar', () => {
     const { world, player, cx, cy } = setup();
-    const victim = createPlayer(world, 'nisanci', cx + 500, cy); // Vahşi'de (×2)
+    const victim = createPlayer(world, 'nisanci', cx + 500, cy);
     victim.progress.level = 4;
     victim.health.hp = 1;
     player.transform.x = player.transform.prevX = cx + 500 - 10;
@@ -189,8 +193,8 @@ describe('PvP XP', () => {
     let gained = 0;
     world.bus.on('xp.gained', (e) => (gained = e.amount));
     for (let i = 0; i < 120 && !victim.dead; i++) step(world);
-    // taban 25 + 4×10 = 65, Vahşi ×2 = 130 — en güçlü T2 mob (35×2=70)'den yüksek
-    expect(gained).toBe(130);
+    // taban 45 + 4×18 = 117 — en güçlü T2 mobdan (60) yüksek (bölge çarpanı yok)
+    expect(gained).toBe(XP.PVP_BASE + 4 * XP.PVP_PER_LEVEL);
   });
 });
 

@@ -3,7 +3,6 @@
 
 import { distSq } from '../../core/vec2.js';
 import { COMBAT, SIM, XP, POISON } from '../../data/balance.js';
-import { xpMultiplier, isProtected } from '../zone.js';
 
 /** Zehirliyken HİÇBİR iyileşme işlemez (PLAN §9 — Ultima usulü). */
 export function canHeal(ent) {
@@ -21,15 +20,11 @@ export function applyPoison(world, target, dps, duration, sourceId) {
 }
 
 /**
- * Hedef alınabilir mi? Takım farklı olmalı; oyuncu-vs-oyuncu ise GZ koruması
- * iki taraf için de devrede (PLAN §4: GZ'de kimse kimseye saldıramaz).
+ * Hedef alınabilir mi? Takım farklı olmalı — GZ kalktığı için PvP her yerde açık.
  */
 export function canAttack(world, attacker, target) {
   if (target.dead || !target.combat) return false;
   if (target.combat.team === attacker.combat.team) return false;
-  if (attacker.kind === 'player' && target.kind === 'player') {
-    if (isProtected(world, attacker) || isProtected(world, target)) return false;
-  }
   return true;
 }
 
@@ -290,7 +285,6 @@ function tryTouchAttack(world, ent) {
   const c = ent.combat;
   const target = ent.ai && world.entities.get(ent.ai.targetId);
   if (!target || target.dead || c.attackCd > 0) return;
-  if (target.kind === 'player' && isProtected(world, target)) return; // kendi üssünde mob da vuramaz
   const rr = ent.body.radius + target.body.radius + COMBAT.TOUCH_PAD;
   if (distSq(ent.transform.x, ent.transform.y, target.transform.x, target.transform.y) < rr * rr) {
     applyDamage(world, target, c.touchDamage, ent);
@@ -380,14 +374,13 @@ export function applyDamage(world, target, amount, source) {
 
   if (target.health.hp <= 0) {
     target.dead = true;
-    // Kill ödülleri: XP (kendi GZ'n dışında ×2) + kill başına can (kartlardan).
-    // Oyuncu kesmek her mobdan değerlidir ve kurbanın seviyesiyle büyür (PLAN §6).
+    // Kill ödülleri: XP (bölge çarpanı YOK — taban değerler buna göre yükseltildi)
+    // + kill başına can (kartlardan). Oyuncu kesmek her mobdan değerlidir (PLAN §6).
     if (source.progress) {
-      let base = 0;
-      if (target.ai?.def.xp) base = target.ai.def.xp;
-      else if (target.kind === 'player') base = XP.PVP_BASE + target.progress.level * XP.PVP_PER_LEVEL;
-      if (base > 0) {
-        const gained = base * xpMultiplier(world, source);
+      let gained = 0;
+      if (target.ai?.def.xp) gained = target.ai.def.xp;
+      else if (target.kind === 'player') gained = XP.PVP_BASE + target.progress.level * XP.PVP_PER_LEVEL;
+      if (gained > 0) {
         source.progress.xp += gained;
         world.bus.emit('xp.gained', { x: source.transform.x, y: source.transform.y, amount: gained });
       }

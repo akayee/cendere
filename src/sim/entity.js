@@ -3,7 +3,6 @@
 import { CLASSES } from '../data/classes.js';
 import { MOBS, T2_MOBS, T3_MOBS, T4_MOB } from '../data/mobs.js';
 import { RARITY, CARDS } from '../data/cards.js';
-import { ZONE } from '../data/balance.js';
 import { addEntity } from './world.js';
 
 export function createPlayer(world, classId, x, y, opts = {}) {
@@ -13,7 +12,7 @@ export function createPlayer(world, classId, x, y, opts = {}) {
     kind: 'player',
     classId,
     transform: { x, y, prevX: x, prevY: y, dir: 'down' },
-    motion: { velX: 0, velY: 0, speed: cls.speed },
+    motion: { velX: 0, velY: 0, speed: cls.speed, baseSpeed: cls.speed }, // baseSpeed: hız tavanı referansı
     body: { radius: cls.radius, solid: true },
     health: { hp: cls.hp, maxHp: cls.hp, hurtT: 0 },
     combat: {
@@ -34,14 +33,10 @@ export function createPlayer(world, classId, x, y, opts = {}) {
       offer: null, // açık teklif: kart id dizisi (tekrar açınca aynı 3 kart)
       build: [], // seçilen kart id'leri
     },
-    zone: { gzBudget: ZONE.GZ_BUDGET, exiled: false, wasInGZ: true }, // merkezde (GZ'de) doğar
     gather: {
-      wood: 0,
-      ore: 0,
+      stats: { atk: 0, armor: 0, speed: 0 }, // toplanan pickup sayaçları (HUD gösterir)
       pots: 1, // maça 1 potla başlanır
-      woodProcessed: 0,
-      oreProcessed: 0,
-      channel: null, // aktifken {type:'resource'|'focus', targetId?, t, duration}
+      channel: null, // aktifken {type:'focus', t, duration} — kanal artık YALNIZ yoğunlaşma için
       interrupt: false, // hasar yiyince combat bunu kaldırır → kanal bozulur
       drinkT: 0, // pot içme animasyonu: bu sürede yavaş
       potEffect: null, // aktifken {t, rate}
@@ -52,7 +47,7 @@ export function createPlayer(world, classId, x, y, opts = {}) {
   };
   addEntity(world, ent);
   ent.combat.team = 'p' + ent.id; // PvP: herkes kendi takımı
-  ent.gatherBonus = cls.gatherBonus; // toplama uzmanlığı (PLAN §5)
+  ent.pickupBonus = cls.pickupBonus; // uzmanlık: kendi türünde pickup etkisi ×2 (PLAN §5)
   ent.name = opts.name ?? 'Sen';
   if (opts.bot) {
     // "Sanal parmak": bot AI'ı input bileşenini doldurur (ARCHITECTURE.md §4)
@@ -78,10 +73,7 @@ export function createEliteBag(world, mob) {
     resType: 'kese',
     transform: { x: mob.transform.x, y: mob.transform.y },
     body: { radius: 4, solid: false },
-    lockedBy: 0,
     loot: {
-      wood: 2,
-      ore: 2,
       cardId: epics[Math.floor(world.rng() * epics.length)].id,
     },
     render: { sprite: 'res_kese' },
@@ -92,7 +84,8 @@ export function createEliteBag(world, mob) {
   return ent;
 }
 
-/** Ganimet Kesesi (PLAN §9): ölen oyuncunun düşürdüğü, kanalla toplanan sandık. */
+/** Ganimet Kesesi (PLAN §9): ölen oyuncunun düşürdüğü, TEMASLA açılan sandık
+ *  (tek koşul: çatışmadan LOOT_DELAY sonra — savaşın ortasında kazara açılmaz). */
 export function createLootBag(world, victim) {
   const t = victim.transform;
   const ent = {
@@ -100,11 +93,8 @@ export function createLootBag(world, victim) {
     kind: 'resource',
     resType: 'kese',
     transform: { x: t.x, y: t.y },
-    body: { radius: 4, solid: false }, // üstünden yürünebilir, kanalla açılır
-    lockedBy: 0,
+    body: { radius: 4, solid: false }, // üstünden yürünerek açılır
     loot: {
-      wood: victim.gather?.wood ?? 0,
-      ore: victim.gather?.ore ?? 0,
       cardId: null, // Yankı Kartı açılış anında, AÇANIN sınıfına uygun seçilir
       build: [...(victim.progress?.build ?? [])],
     },
@@ -116,7 +106,7 @@ export function createLootBag(world, victim) {
   return ent;
 }
 
-/** Toplanabilir kaynak: ağaç (kereste), maden damarı (cevher), bitki (pot). */
+/** Yerde duran pickup: atk (saldırı), armor (zırh), herb (pot), speed (hız). */
 export function createResource(world, resType, x, y) {
   const ent = {
     id: 0,
@@ -124,7 +114,6 @@ export function createResource(world, resType, x, y) {
     resType,
     transform: { x, y },
     body: { radius: 4, solid: true },
-    lockedBy: 0, // kanal kilidi: 0 = serbest (PLAN §7 — her kaynak tek kişiye)
     render: { sprite: 'res_' + resType },
   };
   addEntity(world, ent);

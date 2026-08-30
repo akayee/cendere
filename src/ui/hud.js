@@ -1,5 +1,7 @@
-// HUD: alt-orta durum paneli (can/XP/GZ/malzeme) + üst-orta maç saati.
+// HUD: alt-orta durum paneli (can/XP/pickup bonusları) + üst-orta maç saati.
 // Panel dokunuşları yutmaz (pointer-events: none) — joystick/butonlar etkilenmez.
+
+import { ECON } from '../data/balance.js';
 
 export function createHud() {
   const root = document.getElementById('hud');
@@ -38,23 +40,18 @@ export function createHud() {
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;font:bold 12px monospace;color:#fff;text-shadow:0 1px 2px #000">
-      <span id="h-zone" style="padding:1px 8px;border-radius:8px;font-size:11px"></span>
+      <span id="h-zone" style="padding:1px 8px;border-radius:8px;font-size:11px;display:none"></span>
       <span id="h-mat"></span>
-      <span style="display:flex;align-items:center;gap:4px;flex:1">
-        <span style="font-size:10px;opacity:0.8">GZ</span>
-        <span style="flex:1;height:5px;background:rgba(0,0,0,0.55);border-radius:3px;overflow:hidden;display:block">
-          <span id="h-gz" style="display:block;width:100%;height:100%;background:#8cd9ff"></span>
-        </span>
-      </span>
     </div>`;
   Object.assign(panel.style, {
     position: 'fixed',
     left: '50%',
     bottom: 'calc(14px + env(safe-area-inset-bottom, 0px))',
     transform: 'translateX(-50%)',
-    // Telefonda sağdaki beceri/pot butonlarına TAŞMAZ: onlara ~190px pay bırak
+    // Sağdaki beceri/pot butonlarına TAŞMAZ: panel ortalı olduğundan iki yana da
+    // buton yığını kadar (kenar payı + beceri çapı) boşluk bırakılır
     width: 'min(56vw, 270px)',
-    maxWidth: 'calc(100vw - 195px)',
+    maxWidth: 'calc(100vw - 2 * (40px + clamp(64px, 12vmin, 112px)))',
     padding: '8px 12px 9px',
     borderRadius: '12px',
     background: 'linear-gradient(170deg, rgba(24,22,48,0.72), rgba(12,10,26,0.72))',
@@ -100,7 +97,6 @@ export function createHud() {
   const hp = $('h-hp');
   const hpTxt = $('h-hp-txt');
   const xp = $('h-xp');
-  const gz = $('h-gz');
   const zoneChip = $('h-zone');
   const matEl = $('h-mat');
 
@@ -110,14 +106,14 @@ export function createHud() {
   let last = performance.now();
 
   return {
-    frame(player, xpNext, wild, match, gzBudgetMax) {
+    frame(player, xpNext, outsideCendere, match) {
       frames++;
       const now = performance.now();
       if (now - last < 250) return;
       const fps = Math.round((frames * 1000) / (now - last));
       frames = 0;
       last = now;
-      fpsEl.textContent = `v0.6 · ${fps} fps`;
+      fpsEl.textContent = `v0.7 · ${fps} fps`;
 
       if (player) {
         level.textContent = player.progress.level;
@@ -128,24 +124,21 @@ export function createHud() {
         hpTxt.textContent = `${Math.ceil(player.health.hp)} / ${player.health.maxHp}`;
         xp.style.width = Math.min(100, (player.progress.xp / xpNext) * 100) + '%';
 
-        const z = player.zone;
-        gz.style.width = (z.gzBudget / gzBudgetMax) * 100 + '%';
-        gz.style.background = z.exiled ? '#e85a5a' : '#8cd9ff';
-
-        if (z.exiled) {
-          zoneChip.textContent = 'SÜRGÜN';
+        // Tehlike rozeti: cendere DIŞINDAYSAN yanar (GZ/Vahşi rozetleri kalktı)
+        if (outsideCendere) {
+          zoneChip.style.display = '';
+          zoneChip.textContent = 'CENDERE DIŞI';
           zoneChip.style.background = '#7a1f1f';
           zoneChip.style.color = '#ffb0b0';
-        } else if (wild) {
-          zoneChip.textContent = 'VAHŞİ ×2';
-          zoneChip.style.background = '#6b4d10';
-          zoneChip.style.color = '#ffd75e';
         } else {
-          zoneChip.textContent = 'GZ';
-          zoneChip.style.background = '#1f4a26';
-          zoneChip.style.color = '#8cf58c';
+          zoneChip.style.display = 'none';
         }
-        matEl.textContent = `🪵${player.gather.wood} ⛏${player.gather.ore}`;
+        // Pickup bonusları GERÇEK stat değerleriyle: ⚔ saldırı % (pickup çarpanından),
+        // 🛡 toplam zırh (pickup + kart), 💨 hız bonusu % (temel hıza göre)
+        const st = player.gather.stats;
+        const atkPct = Math.round((Math.pow(ECON.ATK_DMG_MUL, st.atk) - 1) * 100);
+        const spdPct = Math.round((player.motion.speed / player.motion.baseSpeed - 1) * 100);
+        matEl.textContent = `⚔ +%${atkPct} · 🛡 ${player.combat.mods.armor} · 💨 +%${spdPct}`;
       }
       if (match) {
         matchEl.innerHTML =

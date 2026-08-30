@@ -1,33 +1,43 @@
-// Kart seçim ekranı (PLAN §6). Oyunu DURDURMAZ — açıkken savunmasızsın;
-// dışarı dokununca kapanır, teklif kaybolmaz (aynı 3 kart tekrar açılır).
-// Görsel dil: koyu zemin + nadirlik renginde işlemeli çerçeve; ikonlar pakettin
-// piksel sprite'ları (image-rendering: pixelated).
+// Kart şeridi (PLAN §6'nın revizyonu): seviye atlayınca teklif ekranın ÜST
+// kısmında (maç saatinin altında) kompakt bir şerit olarak KENDİLİĞİNDEN belirir.
+// Oyun KARARTILMAZ ve durmaz: yalnız kartların kendisi ve "sonra" düğmesi dokunuş
+// alır, aradaki boşluklar oyuna geçirgendir — oyuncu hem oynar hem seçer.
+// "Sonra" şeridi gizler ama teklif kaybolmaz; cardIndicator rozetine dokununca
+// aynı teklif tekrar açılır. Görsel dil (nadirlik çerçeveleri, piksel ikonlar)
+// eski tam ekran halinden küçültülerek korundu.
 
 import { CARDS, RARITY } from '../data/cards.js';
 
 const CSS = `
-@keyframes card-in { from { transform: translateY(14px) scale(0.92); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes card-in { from { transform: translateY(-10px) scale(0.92); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes epic-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
-@keyframes epic-glow { 0%,100% { box-shadow: 0 0 14px #ffb54588, 0 4px 18px #000c; } 50% { box-shadow: 0 0 26px #ffb545cc, 0 4px 18px #000c; } }
-.cnd-card { position: relative; width: min(29vw, 165px); border-radius: 10px; padding: 3px; cursor: pointer;
-  animation: card-in 0.22s ease-out backwards; }
+@keyframes epic-glow { 0%,100% { box-shadow: 0 0 10px #ffb54588, 0 3px 12px #000c; } 50% { box-shadow: 0 0 18px #ffb545cc, 0 3px 12px #000c; } }
+.cnd-strip { position: fixed; top: calc(30px + env(safe-area-inset-top, 0px)); left: 50%;
+  transform: translateX(-50%); display: none; align-items: flex-start; gap: 8px;
+  z-index: 24; pointer-events: none; user-select: none; -webkit-user-select: none; }
+/* Dar ekranda minimap'la (sağ üst, ~122px yükseklik) çakışmasın: şerit onun altına iner */
+@media (max-width: 700px) { .cnd-strip { top: calc(128px + env(safe-area-inset-top, 0px)); } }
+.cnd-card { position: relative; width: clamp(90px, 17vw, 140px); border-radius: 8px; padding: 2px;
+  cursor: pointer; pointer-events: auto; animation: card-in 0.22s ease-out backwards; }
 .cnd-card:active { transform: scale(0.96); }
-.cnd-card-inner { border-radius: 8px; padding: 12px 10px 14px; text-align: center; color: #efe6d5;
+.cnd-card-inner { border-radius: 6px; padding: 6px 6px 8px; text-align: center; color: #efe6d5;
   background:
     radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.07), transparent 55%),
-    repeating-linear-gradient(0deg, rgba(255,255,255,0.016) 0 2px, transparent 2px 4px),
     linear-gradient(170deg, #2b2749, #171430 60%, #12101f);
   border: 1px solid rgba(255,255,255,0.09); }
-.cnd-rar { font: bold 10px monospace; letter-spacing: 3px; margin-bottom: 6px; }
-.cnd-divider { height: 1px; margin: 7px 14px; }
-.cnd-icon { width: 54px; height: 54px; margin: 4px auto 2px; border-radius: 50%; display: flex;
-  align-items: center; justify-content: center;
+.cnd-rar { font: bold 8px monospace; letter-spacing: 2px; margin-bottom: 3px; }
+.cnd-icon { width: 34px; height: 34px; margin: 2px auto; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; overflow: hidden;
   background: radial-gradient(circle, rgba(255,255,255,0.10), rgba(0,0,0,0.35) 72%);
   border: 1px solid rgba(255,255,255,0.14); }
 .cnd-icon img, .cnd-icon .crop { image-rendering: pixelated; }
-.cnd-name { font: bold 15px Georgia, serif; letter-spacing: 0.4px; margin-top: 6px; }
-.cnd-desc { font: 12px sans-serif; opacity: 0.82; line-height: 1.4; margin-top: 6px; min-height: 32px; }
-.cnd-corner { position: absolute; width: 7px; height: 7px; transform: rotate(45deg); border-radius: 1px; }
+.cnd-name { font: bold 12px Georgia, serif; letter-spacing: 0.3px; margin-top: 3px; }
+.cnd-desc { font: 10px sans-serif; opacity: 0.82; line-height: 1.3; margin-top: 3px; min-height: 26px; }
+.cnd-corner { position: absolute; width: 6px; height: 6px; transform: rotate(45deg); border-radius: 1px; }
+.cnd-later { pointer-events: auto; align-self: center; width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(24,22,48,0.85); border: 1px solid rgba(255,255,255,0.35); color: #cfd6e4;
+  font: bold 13px/28px sans-serif; text-align: center; cursor: pointer; }
+.cnd-later:active { transform: scale(0.92); }
 `;
 
 export function createCardScreen(onPick) {
@@ -35,28 +45,12 @@ export function createCardScreen(onPick) {
   style.textContent = CSS;
   document.head.appendChild(style);
 
-  const overlay = document.createElement('div');
-  Object.assign(overlay.style, {
-    position: 'fixed',
-    inset: '0',
-    background: 'radial-gradient(circle at 50% 45%, rgba(30,24,64,0.55), rgba(8,6,20,0.78))',
-    display: 'none',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '14px',
-    zIndex: '30',
-    userSelect: 'none',
-    webkitUserSelect: 'none',
-  });
-
-  overlay.addEventListener('pointerdown', (e) => {
-    if (e.target === overlay) hide(); // dışarı dokunma = kapat (teklif kalır)
-  });
-
-  document.body.appendChild(overlay);
+  const strip = document.createElement('div');
+  strip.className = 'cnd-strip';
+  document.body.appendChild(strip);
 
   function hide() {
-    overlay.style.display = 'none';
+    strip.style.display = 'none';
   }
 
   function frameStyle(rarKey, color) {
@@ -70,30 +64,29 @@ export function createCardScreen(onPick) {
     if (rarKey === 'rare') {
       return {
         background: `linear-gradient(165deg, #e6c8ff, ${color} 35%, #5b2e8a 80%)`,
-        boxShadow: `0 0 14px ${color}66, 0 4px 18px #000c`,
+        boxShadow: `0 0 10px ${color}66, 0 3px 12px #000c`,
       };
     }
     return {
       background: `linear-gradient(165deg, #f2f5f7, ${color} 40%, #5c6670 85%)`,
-      boxShadow: '0 4px 16px #000c',
+      boxShadow: '0 3px 10px #000c',
     };
   }
 
   function iconHtml(icon) {
     if (!icon) return '';
     if (typeof icon === 'string') {
-      return `<img src="${icon}" style="max-width:44px;max-height:44px;transform:scale(2.4)" alt="">`;
+      return `<img src="${icon}" style="max-width:28px;max-height:28px;transform:scale(1.7)" alt="">`;
     }
     // Sprite sheet'ten kare: background-position ile kırp
-    const s = 1.6;
     return (
-      `<div class="crop" style="width:${icon.w}px;height:${icon.h}px;transform:scale(${s});` +
+      `<div class="crop" style="width:${icon.w}px;height:${icon.h}px;transform:scale(1.1);` +
       `background:url('${icon.src}') -${icon.x}px -${icon.y}px no-repeat"></div>`
     );
   }
 
   function show(cardIds) {
-    overlay.innerHTML = '';
+    strip.innerHTML = '';
     cardIds.forEach((id, idx) => {
       const card = CARDS.find((c) => c.id === id);
       const rar = RARITY[card.rarity];
@@ -105,32 +98,43 @@ export function createCardScreen(onPick) {
       el.innerHTML =
         `<div class="cnd-card-inner">` +
         `<div class="cnd-rar" style="color:${rar.color}">◆ ${rar.name.toUpperCase()} ◆</div>` +
-        `<div class="cnd-divider" style="background:linear-gradient(90deg,transparent,${rar.color},transparent)"></div>` +
-        `<div class="cnd-icon" style="box-shadow:inset 0 0 10px ${rar.color}44">${iconHtml(card.icon)}</div>` +
+        `<div class="cnd-icon" style="box-shadow:inset 0 0 8px ${rar.color}44">${iconHtml(card.icon)}</div>` +
         `<div class="cnd-name">${card.name}</div>` +
         `<div class="cnd-desc">${card.desc}</div>` +
-        `<div class="cnd-divider" style="background:linear-gradient(90deg,transparent,${rar.color}88,transparent)"></div>` +
         `</div>` +
-        corner(rar.color, 'top:-3px;left:-3px') +
-        corner(rar.color, 'top:-3px;right:-3px') +
-        corner(rar.color, 'bottom:-3px;left:-3px') +
-        corner(rar.color, 'bottom:-3px;right:-3px');
+        corner(rar.color, 'top:-2px;left:-2px') +
+        corner(rar.color, 'top:-2px;right:-2px') +
+        corner(rar.color, 'bottom:-2px;left:-2px') +
+        corner(rar.color, 'bottom:-2px;right:-2px');
 
       el.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        // Ekran KAPANMAZ: bekleyen hak varsa sıradaki teklif aynı ekranda belirir,
+        // Şerit KAPANMAZ: bekleyen hak varsa sıradaki teklif aynı şeritte belirir,
         // son haktan sonra kapatmayı main (cards.picked) yönetir.
         onPick(idx);
       });
-      overlay.appendChild(el);
+      strip.appendChild(el);
     });
-    overlay.style.display = 'flex';
+
+    // "Sonra": şeridi gizler, teklif kaybolmaz — cardIndicator rozetinden geri açılır
+    const later = document.createElement('div');
+    later.className = 'cnd-later';
+    later.textContent = '✕';
+    later.title = 'Sonra';
+    later.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hide();
+    });
+    strip.appendChild(later);
+
+    strip.style.display = 'flex';
   }
 
   function corner(color, pos) {
-    return `<div class="cnd-corner" style="${pos};background:${color};box-shadow:0 0 5px ${color}"></div>`;
+    return `<div class="cnd-corner" style="${pos};background:${color};box-shadow:0 0 4px ${color}"></div>`;
   }
 
-  return { show, hide, isOpen: () => overlay.style.display !== 'none' };
+  return { show, hide, isOpen: () => strip.style.display !== 'none' };
 }

@@ -1,6 +1,8 @@
 // Bot AI (PLAN §10): oyuncu gibi Intent üretir — sim'in gözünde fark yok (§4).
-// Utility yaklaşımı: yarım saniyede bir durum değerlendirir, hedef seçer;
-// oto-saldırı/oto-toplama zaten sim'de olduğundan botun işi POZİSYON almaktır.
+// Utility yaklaşımı: yarım saniyede bir durum değerlendirir, hedef seçer.
+// Toplama TEMASLA olduğu için botun işi yalnız POZİSYON almaktır: kaynağın
+// üstünden geçmek yeter, durup kanallamaz. Canı azalınca savaştan kaçar ve
+// güvenliyse yoğunlaşma/pot kullanır (GZ'ye çekilme kalktı).
 //
 // Yol bulma yoktur; onun yerine iki sigorta vardır:
 //  - Takılma dedektörü: ilerleyemeyen bot 90° yana adım atıp engeli dolanır.
@@ -8,8 +10,9 @@
 
 import { distSq } from '../../core/vec2.js';
 import { range } from '../../core/rng.js';
-import { SIM, ECON, ZONE } from '../../data/balance.js';
-import { isOutsideCendere, isProtected, isInOwnGZ, gzOf, gzRadius } from '../zone.js';
+import { SIM } from '../../data/balance.js';
+import { isOutsideCendere } from '../zone.js';
+import { canPickup } from './gatherSystem.js';
 
 const THINK_INTERVAL = 0.5;
 const PURSUE_TIMEOUT = 6; // sn: bu kadar süre ulaşılamayan hedef...
@@ -22,7 +25,7 @@ export function aiBotSystem(world) {
     const t = ent.transform;
     const g = ent.gather;
 
-    // --- KANAL KORUMASI: kanal açıkken kımıldama, karar verme
+    // --- YOĞUNLAŞMA KORUMASI: kanal açıkken kımıldama, karar verme
     // (hasar yenirse kanal zaten kırılır ve sonraki tick normal AI devam eder)
     if (g.channel) {
       ent.input.moveX = 0;
@@ -98,26 +101,9 @@ function decide(world, ent) {
     return;
   }
 
-  // 1.5) Üs bütçe yönetimi: Sürgün'sen ya da bütçen tükeniyorsa KENDİ GZ'NDE OTURMA —
-  // dışarı çık ki bütçe dolsun (üs kampçılığıyla maç kilitlenmesin)
-  const myGz = gzOf(world, ent);
-  if (myGz && isInOwnGZ(world, ent) && (ent.zone.exiled || ent.zone.gzBudget < ZONE.GZ_BUDGET * 0.25)) {
-    const dx = t.x - myGz.x;
-    const dy = t.y - myGz.y;
-    const dl = Math.hypot(dx, dy) || 1;
-    const outR = gzRadius(world, myGz) + 60;
-    setGoal(ai, myGz.x + (dx / dl) * outR, myGz.y + (dy / dl) * outR, 6);
-    return;
-  }
-
-  // 2) Canı çok azsa: bütçe varsa KENDİ ÜSSÜNE kaç (koruma + can basar);
-  // üs yoksa/eridiyse düşmandan uzağa
+  // 2) Canı çok azsa: düşmandan uzağa kaç; güvendeyse durup YOĞUNLAŞ
   const threat = nearestEnemyPlayer(world, ent, 140);
   if (ent.health.hp < ent.health.maxHp * 0.3) {
-    if (myGz && gzRadius(world, myGz) > 10 && ent.zone.gzBudget > 15 && !ent.zone.exiled) {
-      setGoal(ai, myGz.x, myGz.y, 8);
-      return;
-    }
     if (threat) {
       const fx = t.x - threat.transform.x;
       const fy = t.y - threat.transform.y;
@@ -125,14 +111,20 @@ function decide(world, ent) {
       setGoal(ai, t.x + (fx / fl) * 90, t.y + (fy / fl) * 90, 4);
       return;
     }
+    if ((ent.combat?.inCombatT ?? 0) <= 0) {
+      // Tehdit yok, savaş hali geçti: olduğu yerde dur ve can doldur
+      setGoal(ai, t.x, t.y, 4);
+      ent.input.wantGather = true;
+      return;
+    }
   }
 
-  // 3) PvP fırsatı: yakında saldırılabilir oyuncu + agresiflik + güç üstünlüğü.
+  // 3) PvP fırsatı: yakında oyuncu + agresiflik + güç üstünlüğü.
   // Geç oyunda (Son Cendere/Ani Ölüm) çekingenlik biter: menzil büyür, eşik düşer —
   // yoksa eşit güçteki botlar sonsuza dek bakışıp maçı süründürür.
   const late = world.match.phase === 'son' || world.match.phase === 'aniolum';
   const enemy = nearestEnemyPlayer(world, ent, 60 + p.aggro * 60 + (late ? 120 : 0));
-  if (enemy && !isProtected(world, enemy) && !isProtected(world, ent)) {
+  if (enemy) {
     const myPower = ent.progress.level + ent.health.hp / 40;
     const theirPower = enemy.progress.level + enemy.health.hp / 40;
     let threshold = 1.25 - p.aggro * 0.45;
@@ -145,10 +137,10 @@ function decide(world, ent) {
   }
 
   // 4) Kese > kaynak > mob önceliğiyle hedef seç (kara liste + saplantı sigortalı)
-  // stopDist 13: kaynağın katı gövdesine (r4+r5=9) çarpmadan durur ama toplama
-  // menziline (19) girer — daha yakını fizik itişmesiyle sonsuz "yürüme"ye döner!
+  // stopDist 2: toplama TEMASLA olduğu için bot kaynağın üstüne yürür; pickup
+  // temas anında gerçekleşip kaynağı kaldırdığından bot takılıp kalmaz.
   const kese = nearestUsableResource(world, ent, 120 * p.greed, 'kese');
-  if (kese && pursue(world, ai, kese, 13)) return;
+  if (kese && pursue(world, ai, kese, 2)) return;
 
   const mob = nearestMob(world, ent, 170);
   const res = nearestUsableResource(world, ent, 220);
@@ -160,7 +152,7 @@ function decide(world, ent) {
     setGoal(ai, mob.transform.x, mob.transform.y, ent.combat.auto.range * 0.7);
     return;
   }
-  if (res && resD < 900 && pursue(world, ai, res, 13)) return;
+  if (res && resD < 900 && pursue(world, ai, res, 2)) return;
 
   // 5) Amaçsız: dolan — hedef varılana (ya da süresi dolana) kadar KORUNUR
   ai.pursueId = 0;
@@ -200,15 +192,14 @@ function pursue(world, ai, res, stopDist) {
   return true;
 }
 
-/** En yakın kullanılabilir kaynak: kilitli, kara listeli ve (pot doluysa) bitki hariç. */
+/** En yakın işe yarar pickup: kara listeli ve (doluysa) alınamayanlar hariç. */
 function nearestUsableResource(world, ent, radius, onlyType = null) {
   const ai = ent.botAi;
   let best = null;
   let bestDsq = radius * radius;
   for (const res of world.resources) {
     if (onlyType ? res.resType !== onlyType : res.resType === 'kese') continue;
-    if (res.lockedBy) continue;
-    if (res.resType === 'herb' && ent.gather.pots >= ECON.POT_MAX) continue;
+    if (res.resType !== 'kese' && !canPickup(ent, res)) continue; // pot/hız dolu: boşa yürüme
     if (ai.avoidRes?.[res.id] > world.match.t) continue;
     const dsq = distSq(ent.transform.x, ent.transform.y, res.transform.x, res.transform.y);
     if (dsq < bestDsq) {

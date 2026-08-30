@@ -4,12 +4,12 @@
 export const MATCH_END = 480; // 8:00 — kesin bitiş
 
 export const PHASES = [
-  // start (sn), cendere yarıçapı (dünya px), dışarıda kalma hasarı (can/sn), GZ yarıçapı
-  { key: 'hazirlik', name: 'Hazırlık', start: 0, radius: 1450, dps: 0, gz: 224 },
-  { key: 'genisleme', name: 'Genişleme', start: 75, radius: 1450, dps: 2, gz: 224 },
-  { key: 'sikisma', name: 'Sıkışma', start: 195, radius: 700, dps: 5, gz: 224 }, // GZ bu evrede erir
-  { key: 'son', name: 'Son Cendere', start: 315, radius: 380, dps: 10, gz: 0 },
-  { key: 'aniolum', name: 'Ani Ölüm', start: 405, radius: 140, dps: 20, gz: 0 },
+  // start (sn), cendere yarıçapı (dünya px), dışarıda kalma hasarı (can/sn)
+  { key: 'hazirlik', name: 'Hazırlık', start: 0, radius: 1450, dps: 0 },
+  { key: 'genisleme', name: 'Genişleme', start: 75, radius: 1450, dps: 2 },
+  { key: 'sikisma', name: 'Sıkışma', start: 195, radius: 700, dps: 5 },
+  { key: 'son', name: 'Son Cendere', start: 315, radius: 380, dps: 10 },
+  { key: 'aniolum', name: 'Ani Ölüm', start: 405, radius: 140, dps: 20 },
 ];
 
 export const FINAL_RADIUS = 60; // 20:00'de ulaşılan minimum çember
@@ -36,17 +36,6 @@ export function cendereRadiusAt(t) {
   const span = nextStart - cur.start;
   const f = span > 0 ? Math.min(1, (t - cur.start) / span) : 1;
   return cur.radius + (nextRadius - cur.radius) * f;
-}
-
-/** t anındaki GZ yarıçapı (Sıkışma boyunca erir) */
-export function gzRadiusAt(t) {
-  const i = phaseIndexAt(t);
-  const cur = PHASES[i];
-  const nextGz = i + 1 < PHASES.length ? PHASES[i + 1].gz : 0;
-  const nextStart = i + 1 < PHASES.length ? PHASES[i + 1].start : MATCH_END;
-  const span = nextStart - cur.start;
-  const f = span > 0 ? Math.min(1, (t - cur.start) / span) : 1;
-  return cur.gz + (nextGz - cur.gz) * f;
 }
 
 /** t anındaki cendere hasarı (can/sn) */

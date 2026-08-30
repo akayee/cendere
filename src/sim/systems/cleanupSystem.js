@@ -7,12 +7,7 @@ export function cleanupSystem(world) {
     const ent = world.movers[i];
     if (!ent.dead) continue;
 
-    const killer =
-      ent.lastHitBy === -1
-        ? 'Cendere'
-        : ent.lastHitBy === -2
-          ? 'GZ'
-          : (world.entities.get(ent.lastHitBy)?.name ?? null);
+    const killer = ent.lastHitBy === -1 ? 'Cendere' : (world.entities.get(ent.lastHitBy)?.name ?? null);
     world.bus.emit('entity.died', {
       x: ent.transform.x,
       y: ent.transform.y,
@@ -26,9 +21,6 @@ export function cleanupSystem(world) {
     if (ent.kind === 'player') {
       world.movers.splice(i, 1);
       createLootBag(world, ent); // Ganimet Kesesi düşer (PLAN §9)
-      // Sahibi ölen kişisel GZ söner
-      const gi = world.gzones.findIndex((g) => g.ownerId === ent.id);
-      if (gi >= 0) world.gzones.splice(gi, 1);
 
       if (ent.id === world.playerId) {
         // İnsan öldü: maç biter (entity kamera için yerinde kalır)
