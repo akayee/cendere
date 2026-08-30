@@ -15,13 +15,13 @@ export function createPlayer(world, classId, x, y, opts = {}) {
     transform: { x, y, prevX: x, prevY: y, dir: 'down' },
     motion: { velX: 0, velY: 0, speed: cls.speed, baseSpeed: cls.speed }, // baseSpeed: hız tavanı referansı
     body: { radius: cls.radius, solid: true },
-    health: { hp: cls.hp, maxHp: cls.hp, hurtT: 0 },
+    health: { hp: cls.hp, maxHp: cls.hp, hurtT: 0, killHpGain: 0 }, // killHpGain: Avcı İçgüdüsü birikimi (KILL_MAXHP_CAP'te durur)
     combat: {
       team: 'player', // addEntity sonrası benzersizleşir: her oyuncu/bot ayrı takım (PvP)
       // Kartlar bu değerleri değiştirir — sınıf verisinin KOPYASI (paylaşım yasak)
       auto: { ...cls.auto },
       skill: { ...cls.skill },
-      mods: { armor: 0, crit: 0, lifesteal: 0, regen: 0, killHeal: 0 },
+      mods: { armor: 0, crit: 0, lifesteal: 0, regen: 0, killMaxHp: 0 },
       autoCd: 0,
       skillCd: 0,
       swingT: 0,

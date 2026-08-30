@@ -38,6 +38,9 @@ export const COMBAT = {
   // Düz max(1, güç − zırh) tabanı zırh istifinde her vuruşu 1'e çakıyordu — yakın
   // dövüş (Cengâver) bundan en çok etkilenen sınıftı.
   MIN_DAMAGE_RATIO: 0.3,
+  // Avcı İçgüdüsü (killMaxHp) toplam kazanım tavanı: 60 maçlık simde uçlar +500'ü
+  // aşabiliyordu (mob grinding + kart istifi). ≈20 kill'lik birikim makul üst sınır.
+  KILL_MAXHP_CAP: 60,
 };
 
 // Zehir (PLAN §9 — Ultima usulü): hasarı küçük, asıl silahı İYİLEŞME KİLİDİ.

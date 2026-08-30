@@ -419,7 +419,7 @@ export function applyDamage(world, target, amount, source) {
   if (target.health.hp <= 0) {
     target.dead = true;
     // Kill ödülleri: XP (bölge çarpanı YOK — taban değerler buna göre yükseltildi)
-    // + kill başına can (kartlardan). Oyuncu kesmek her mobdan değerlidir (PLAN §6).
+    // + kill başına KALICI azami can (kartlardan). Oyuncu kesmek her mobdan değerlidir (PLAN §6).
     if (source.progress) {
       let gained = 0;
       if (target.ai?.def.xp) gained = target.ai.def.xp;
@@ -429,8 +429,19 @@ export function applyDamage(world, target, amount, source) {
         world.bus.emit('xp.gained', { x: source.transform.x, y: source.transform.y, amount: gained });
       }
     }
-    if (srcMods?.killHeal > 0 && source.health && canHeal(source)) {
-      source.health.hp = Math.min(source.health.maxHp, source.health.hp + srcMods.killHeal);
+    if (srcMods?.killMaxHp > 0 && source.health) {
+      // Azami can HER ZAMAN artar (kalıcı kazanım — zehir bunu engellemez) ama toplam
+      // kazanım KILL_MAXHP_CAP'te durur (mob grinding uçlarını törpüler);
+      // mevcut cana dolum ise iyileşmedir: zehirliyken kilitli, zehir geçince dolabilir (PLAN §9)
+      const gained = source.health.killHpGain ?? 0;
+      const add = Math.min(srcMods.killMaxHp, Math.max(0, COMBAT.KILL_MAXHP_CAP - gained));
+      if (add > 0) {
+        source.health.killHpGain = gained + add;
+        source.health.maxHp += add;
+        if (canHeal(source)) {
+          source.health.hp = Math.min(source.health.maxHp, source.health.hp + add);
+        }
+      }
     }
   }
 }

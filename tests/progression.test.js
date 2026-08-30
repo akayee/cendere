@@ -147,7 +147,7 @@ describe('progressionSystem', () => {
     const known = new Set([
       'maxHpAdd', 'speedMul', 'autoDamageAdd', 'autoCooldownMul', 'autoRangeAdd',
       'skillPowerMul', 'skillCooldownMul', 'armorAdd', 'critAdd', 'lifestealAdd',
-      'regenAdd', 'killHealAdd',
+      'regenAdd', 'killMaxHpAdd',
       'autoArcFull', 'autoProjAdd', 'poisonOnHit', 'skillChargesSet',
     ]);
     for (const card of CARDS) {

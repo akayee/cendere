@@ -5,7 +5,8 @@
 //   maxHpAdd, speedMul, autoDamageAdd, autoCooldownMul, autoRangeAdd,
 //   skillPowerMul (sınıfa göre: dash hasarı / ok çarpanı / alev şiddeti),
 //   skillCooldownMul, armorAdd, critAdd, lifestealAdd,
-//   regenAdd (hp/sn), killHealAdd (kill başına can),
+//   regenAdd (hp/sn), killMaxHpAdd (kill başına KALICI azami can; kazanım anında mevcut
+//     cana da eklenir; toplam kazanım balance.js COMBAT.KILL_MAXHP_CAP'te durur),
 //   autoArcFull (cengaver: tam daire), autoProjAdd (+N mermi yelpazesi),
 //   poisonOnHit (saldırılar zehirler), skillChargesSet (beceri şarj sayısı)
 // classId: verilirse kart YALNIZCA o sınıfın teklif havuzuna girer
@@ -41,7 +42,7 @@ export const CARDS = [
   { id: 'olum_dansi', name: 'Ölüm Dansı', desc: 'Beceri %25 daha sık kullanılır', rarity: 'rare', effect: { skillCooldownMul: 0.75 }, icon: 'pack/Items/Weapons/Whip/Sprite.png' },
   { id: 'agir_darbe', name: 'Ağır Darbe', desc: 'Beceri gücü +%30 (atılma/ok/alev)', rarity: 'rare', effect: { skillPowerMul: 1.3 }, icon: 'pack/Items/Weapons/Hammer/Sprite.png' },
   { id: 'keskin_goz', name: 'Keskin Göz', desc: '%12 kritik şansı (1.5× hasar)', rarity: 'rare', effect: { critAdd: 0.12 }, icon: 'pack/Items/Weapons/Bow/Sprite.png' },
-  { id: 'avci_icgudusu', name: 'Avcı İçgüdüsü', desc: 'Her kill 6 can yeniler', rarity: 'rare', effect: { killHealAdd: 6 }, icon: 'pack/Items/Food/Beaf.png' },
+  { id: 'avci_icgudusu', name: 'Avcı İçgüdüsü', desc: 'Her kill KALICI +3 azami can (toplam +60\'a kadar)', rarity: 'rare', effect: { killMaxHpAdd: 3 }, icon: 'pack/Items/Food/Beaf.png' },
 
   // --- Nadir: SINIF KARTLARI (yalnız o sınıfın havuzuna düşer — PLAN §6)
   { id: 'girdap', name: 'Girdap', desc: 'Savuruş TAM DAİRE olur — arkanı da keser', rarity: 'rare', classId: 'cengaver', unique: true, effect: { autoArcFull: true }, icon: 'pack/Items/Weapons/Sword2/Sprite.png' },

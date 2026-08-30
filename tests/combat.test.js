@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { createWorld } from '../src/sim/world.js';
 import { createPlayer, createMob, createDummy } from '../src/sim/entity.js';
 import { step } from '../src/sim/pipeline.js';
-import { applyDamage } from '../src/sim/systems/combatSystem.js';
+import { applyDamage, applyPoison } from '../src/sim/systems/combatSystem.js';
+import { applyCard } from '../src/sim/systems/progressionSystem.js';
 import { CLASSES } from '../src/data/classes.js';
 import { COMBAT } from '../src/data/balance.js';
 
@@ -159,6 +160,56 @@ describe('combatSystem', () => {
     const raw = player.combat.auto.damage;
     applyDamage(world, foe, raw, player);
     expect(foe.health.maxHp - foe.health.hp).toBe(raw - 2);
+  });
+
+  it('Avcı İçgüdüsü: her kill KALICI +3 azami can ve anında +3 mevcut can', () => {
+    const { world, player, cx, cy } = setup();
+    applyCard(player, 'avci_icgudusu');
+    const baseMax = player.health.maxHp;
+    player.health.hp = baseMax - 10; // dolumun görünmesi için can eksik olsun
+    const mob = createMob(world, 'slime', cx + 500, cy); // menzil dışı — elle öldürülür
+    applyDamage(world, mob, 9999, player);
+    expect(mob.dead).toBe(true);
+    expect(player.health.maxHp).toBe(baseMax + 3); // kalıcı kazanım
+    expect(player.health.hp).toBe(baseMax - 10 + 3); // anında dolum
+  });
+
+  it('Avcı İçgüdüsü zehirliyken: azami can yine artar ama dolum kilitli; zehir geçince dolabilir', () => {
+    const { world, player, cx, cy } = setup();
+    applyCard(player, 'avci_icgudusu');
+    const baseMax = player.health.maxHp;
+    const baseHp = player.health.hp;
+    applyPoison(world, player, 0, 8, 0); // dps 0: sadece iyileşme kilidi test edilsin
+    const mob1 = createMob(world, 'slime', cx + 500, cy);
+    applyDamage(world, mob1, 9999, player);
+    expect(player.health.maxHp).toBe(baseMax + 3); // kalıcı kazanım zehirde de işler
+    expect(player.health.hp).toBe(baseHp); // ama dolum yok (iyileşme kilidi — PLAN §9)
+    expect(player.health.hp).toBeLessThan(player.health.maxHp); // zehir geçince dolabilir durumda
+    // Zehir geçti: dolum yeniden işler
+    player.health.poison = null;
+    const mob2 = createMob(world, 'slime', cx + 500, cy + 40);
+    applyDamage(world, mob2, 9999, player);
+    expect(player.health.maxHp).toBe(baseMax + 6);
+    expect(player.health.hp).toBe(baseHp + 3);
+  });
+
+  it('Avcı İçgüdüsü tavanı: toplam kazanım KILL_MAXHP_CAP\'te durur (58→+2, sonrası +0)', () => {
+    const { world, player, cx, cy } = setup();
+    applyCard(player, 'avci_icgudusu');
+    player.health.killHpGain = COMBAT.KILL_MAXHP_CAP - 2; // tavana 2 kala
+    const baseMax = player.health.maxHp;
+    player.health.hp = baseMax - 10;
+    const mob1 = createMob(world, 'slime', cx + 500, cy);
+    applyDamage(world, mob1, 9999, player);
+    expect(player.health.maxHp).toBe(baseMax + 2); // 3 değil: tavana kırpıldı
+    expect(player.health.hp).toBe(baseMax - 10 + 2); // dolum da kırpılmış miktarla
+    expect(player.health.killHpGain).toBe(COMBAT.KILL_MAXHP_CAP);
+    // Tavan dolu: sonraki kill hiçbir şey vermez
+    const mob2 = createMob(world, 'slime', cx + 500, cy + 40);
+    applyDamage(world, mob2, 9999, player);
+    expect(player.health.maxHp).toBe(baseMax + 2);
+    expect(player.health.hp).toBe(baseMax - 10 + 2);
+    expect(player.health.killHpGain).toBe(COMBAT.KILL_MAXHP_CAP);
   });
 
   it('oyuncu ölünce maç biter (BR: ölüm kalıcı)', () => {

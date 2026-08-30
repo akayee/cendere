@@ -111,5 +111,5 @@ export function applyCard(ent, cardId) {
   if (e.critAdd) c.mods.crit += e.critAdd;
   if (e.lifestealAdd) c.mods.lifesteal += e.lifestealAdd;
   if (e.regenAdd) c.mods.regen += e.regenAdd;
-  if (e.killHealAdd) c.mods.killHeal += e.killHealAdd;
+  if (e.killMaxHpAdd) c.mods.killMaxHp += e.killMaxHpAdd;
 }
