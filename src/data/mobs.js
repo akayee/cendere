@@ -6,7 +6,7 @@ export const MOBS = {
     tier: 1,
     hp: 26,
     damage: 5,
-    xp: 21,
+    xp: 14,
     speed: 40,
     radius: 5,
     sprite: 'slime',
@@ -20,7 +20,7 @@ export const MOBS = {
     tier: 1,
     hp: 36,
     damage: 7,
-    xp: 26,
+    xp: 17,
     speed: 34,
     radius: 5,
     sprite: 'mushroom',
@@ -34,7 +34,7 @@ export const MOBS = {
     tier: 1,
     hp: 18,
     damage: 6,
-    xp: 23,
+    xp: 15,
     speed: 72,
     radius: 4,
     sprite: 'snake',
@@ -59,7 +59,7 @@ export const T2_MOBS = {
     tier: 2,
     hp: 85,
     damage: 12,
-    xp: 60,
+    xp: 39,
     speed: 62,
     radius: 6,
     sprite: 'cyclope',
@@ -73,7 +73,7 @@ export const T2_MOBS = {
     tier: 2,
     hp: 60,
     damage: 9,
-    xp: 50,
+    xp: 33,
     speed: 78,
     radius: 5,
     sprite: 'skull',
@@ -87,7 +87,7 @@ export const T2_MOBS = {
     tier: 2,
     hp: 55,
     damage: 6,
-    xp: 55,
+    xp: 36,
     speed: 82,
     radius: 5,
     sprite: 'spider',
@@ -99,34 +99,36 @@ export const T2_MOBS = {
   },
 };
 
-export const T2_CAMPS = 6; // Genişleme'deki ilk kamp dalgası (her kampta 3 mob)
-
 // --- Kamp yöneticisi: ZİNDAN modeli — kamplar merkez bölgede yoğun doğar
 // (cendere daraldıkça otomatik daha da içeride), evre ilerledikçe güçlenir.
+// Elit kamp: 1 ejder + 2 zayıf refakatçi (4. eleman: [mobId, adet] — opsiyonel).
+export const ELITE_CAMP = ['ejder', 1, true, ['hortlak', 2]];
+
 export const CAMPS = {
-  RESPAWN: 55, // kesilen kampın yerine yenisinin gelme aralığı (sn) — uzun cooldown
+  RESPAWN: 40, // kesilen kampın yerine yenisinin gelme aralığı (sn)
   RADIAL: [0.05, 0.5], // kamp, cendere yarıçapının MERKEZ bandında doğar (zindan)
-  TARGET: { hazirlik: 7, genisleme: 10, sikisma: 8, son: 3, aniolum: 0 }, // hedef canlı kamp
-  // Evreye göre kamp içeriği: [mobId, üyeSayısı, elitMi] seçenekleri
+  PLACE_ATTEMPTS: 40, // göl/engel çakışmasında yer arama deneme sayısı
+  TARGET: { hazirlik: 10, genisleme: 14, sikisma: 11, son: 4, aniolum: 0 }, // hedef canlı kamp
+  // Evreye göre kamp içeriği: [mobId, üyeSayısı, elitMi, refakatçi?] seçenekleri
   KINDS: {
     hazirlik: [
-      ['haydut', 3, false],
-      ['hortlak', 3, false],
-      ['orumcek', 3, false],
+      ['haydut', 4, false],
+      ['hortlak', 4, false],
+      ['orumcek', 4, false],
     ],
     genisleme: [
-      ['haydut', 3, false],
-      ['hortlak', 3, false],
-      ['orumcek', 3, false],
+      ['haydut', 5, false],
+      ['hortlak', 5, false],
+      ['orumcek', 4, false],
     ],
     sikisma: [
-      ['haydut', 3, false],
-      ['orumcek', 3, false],
-      ['ejder', 1, true], // güçlü kamplar devreye girer — eski güçsüzler azalır
-      ['ejder', 1, true],
+      ['haydut', 4, false],
+      ['orumcek', 4, false],
+      ELITE_CAMP, // güçlü kamplar devreye girer — eski güçsüzler azalır
+      ELITE_CAMP,
     ],
-    son: [['ejder', 1, true]],
-    aniolum: [['ejder', 1, true]],
+    son: [ELITE_CAMP],
+    aniolum: [ELITE_CAMP],
   },
 };
 
@@ -137,7 +139,7 @@ export const T3_MOBS = {
     tier: 3,
     hp: 280,
     damage: 18,
-    xp: 175,
+    xp: 115,
     speed: 55,
     radius: 7,
     sprite: 'dragon',
@@ -156,7 +158,7 @@ export const T4_MOB = {
   tier: 4,
   hp: 130,
   damage: 14,
-  xp: 105,
+  xp: 68,
   speed: 108,
   radius: 5,
   sprite: 'flam',

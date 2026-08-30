@@ -98,19 +98,28 @@ export function spawnCamp(world, forcedKind = null) {
   if (!kinds || kinds.length === 0) return null;
 
   const maxR = Math.min(world.match.cendereR, world.map.widthPx / 2 - (MAP.BORDER + 3) * MAP.TILE);
-  for (let attempt = 0; attempt < 25; attempt++) {
+  for (let attempt = 0; attempt < CAMPS.PLACE_ATTEMPTS; attempt++) {
     const a = range(rng, 0, Math.PI * 2);
     const r = range(rng, maxR * CAMPS.RADIAL[0], maxR * CAMPS.RADIAL[1]);
     const x = cx + Math.cos(a) * r;
     const y = cy + Math.sin(a) * r;
     if (inLake(world.map, x, y)) continue;
 
-    const [mobId, count, elite] = pick(rng, kinds);
+    const [mobId, count, elite, escort] = pick(rng, kinds);
     const camp = { x, y, tier: elite ? 3 : 2, memberIds: [] };
     for (let i = 0; i < count; i++) {
       const mob = createMob(world, mobId, x + range(rng, -20, 20), y + range(rng, -20, 20));
       if (elite) mob.eliteDrop = true; // ölünce Destansı kartlı kese düşürür
       camp.memberIds.push(mob.id);
+    }
+    // Refakatçiler (opsiyonel 4. eleman): elit kampın yanındaki zayıf üyeler —
+    // kampa dahildirler ama Destansı kese düşürmezler.
+    if (escort) {
+      const [escortId, escortCount] = escort;
+      for (let i = 0; i < escortCount; i++) {
+        const mob = createMob(world, escortId, x + range(rng, -24, 24), y + range(rng, -24, 24));
+        camp.memberIds.push(mob.id);
+      }
     }
     world.camps.push(camp);
     world.bus.emit('camp.spawned', { x, y, tier: camp.tier });

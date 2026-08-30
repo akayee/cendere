@@ -5,7 +5,7 @@ import { SIM, CENDERE } from '../../data/balance.js';
 import { PHASES, MATCH_END, SUDDEN_DEATH, phaseIndexAt, cendereRadiusAt, cendereDpsAt } from '../../data/phases.js';
 import { isOutsideCendere } from '../zone.js';
 import { fillCampsToTarget, ensureCamps, spawnCamp, spawnT4Wave } from '../spawn.js';
-import { T4_SPAWN_INTERVAL, CAMPS } from '../../data/mobs.js';
+import { T4_SPAWN_INTERVAL, CAMPS, ELITE_CAMP } from '../../data/mobs.js';
 
 export function zoneSystem(world) {
   const m = world.match;
@@ -23,8 +23,8 @@ export function zoneSystem(world) {
     fillCampsToTarget(world);
     if (PHASES[idx].key === 'sikisma') {
       // Güçlü kamp çağı: hedef dolu olsa bile 2 elit kamp ZORUNLU gelir
-      spawnCamp(world, ['ejder', 1, true]);
-      spawnCamp(world, ['ejder', 1, true]);
+      spawnCamp(world, ELITE_CAMP);
+      spawnCamp(world, ELITE_CAMP);
       world.bus.emit('t3.spawned', {});
     }
     if (PHASES[idx].key === 'son') {

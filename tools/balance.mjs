@@ -38,9 +38,10 @@ for (let m = 0; m < MATCHES; m++) {
 }
 
 console.log(`\n${MATCHES} maç (9 bot: 3 cengaver / 3 nisanci / 3 ocakci)\n`);
-console.log('sınıf     | galibiyet | kill | ölüm | maç sonu hayatta');
+console.log('sınıf     | galibiyet | kill | ölüm | maç sonu hayatta | ort. seviye (hayatta)');
 for (const [cls, s] of Object.entries(stats)) {
+  const avgLvl = s.aliveAtEnd > 0 ? (s.levelSum / s.aliveAtEnd).toFixed(1) : '-';
   console.log(
-    `${cls.padEnd(9)} | ${String(s.win).padStart(9)} | ${String(s.kills).padStart(4)} | ${String(s.deaths).padStart(4)} | ${String(s.aliveAtEnd).padStart(4)}`
+    `${cls.padEnd(9)} | ${String(s.win).padStart(9)} | ${String(s.kills).padStart(4)} | ${String(s.deaths).padStart(4)} | ${String(s.aliveAtEnd).padStart(4)}             | ${avgLvl}`
   );
 }

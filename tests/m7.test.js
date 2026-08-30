@@ -7,6 +7,8 @@ import { applyCard } from '../src/sim/systems/progressionSystem.js';
 import { PHASES } from '../src/data/phases.js';
 import { xpForLevel, ECON, XP } from '../src/data/balance.js';
 import { CARDS } from '../src/data/cards.js';
+import { CAMPS, ELITE_CAMP } from '../src/data/mobs.js';
+import { spawnCamp, aliveCampCount } from '../src/sim/spawn.js';
 
 function setup(seed = 4242) {
   const world = createWorld(seed);
@@ -103,7 +105,11 @@ describe('M7 — T3/T4 ve kamp yöneticisi', () => {
   });
 
   it('kesilen kampın yerine uzun cooldown sonrası yenisi gelir', () => {
-    const { world } = setup();
+    const { world, player, cx, cy } = setup();
+    // Oyuncu zindan bandının DIŞINDA beklesin: yoğun merkezde tek başına ölür,
+    // ölünce maç biter ve kamp saati durur — test kamp döngüsünü ölçüyor.
+    player.transform.x = player.transform.prevX = cx + 600;
+    player.transform.y = player.transform.prevY = cy;
     world.match.t = PHASES[1].start - 0.2; // Genişleme'ye geçiş: hedefe kadar dolar
     for (let i = 0; i < 30; i++) step(world);
     const target = world.camps.length;
@@ -119,10 +125,31 @@ describe('M7 — T3/T4 ve kamp yöneticisi', () => {
 
     // Cooldown dolmadan yenisi GELMEZ; dolunca 1 kamp eklenir
     for (let i = 0; i < 60 * 10; i++) step(world);
-    expect(world.camps.length).toBe(target); // 10 sn'de yenisi yok (55 sn cooldown)
+    expect(world.camps.length).toBe(target); // 10 sn'de yenisi yok (40 sn cooldown)
     for (let i = 0; i < 60 * 50; i++) step(world);
     expect(world.camps.length).toBeGreaterThanOrEqual(target + 1); // artık geldi
   }, 30000);
+
+  it('zindan evre hedefine dolar; normal kamplar 4-5 üyeli', () => {
+    const { world } = setup();
+    world.match.t = PHASES[1].start - 0.2; // Genişleme'ye geçiş
+    for (let i = 0; i < 30; i++) step(world);
+    expect(aliveCampCount(world)).toBe(CAMPS.TARGET.genisleme);
+    for (const camp of world.camps.filter((c) => c.tier === 2)) {
+      expect(camp.memberIds.length).toBeGreaterThanOrEqual(4);
+      expect(camp.memberIds.length).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it('elit kamp refakatçili doğar: 1 ejder (Destansı drop) + 2 zayıf hortlak', () => {
+    const { world } = setup();
+    const camp = spawnCamp(world, ELITE_CAMP);
+    expect(camp.memberIds.length).toBe(3);
+    const members = camp.memberIds.map((id) => world.entities.get(id));
+    expect(members.filter((m) => m.ai.def.tier === 3).length).toBe(1);
+    expect(members.filter((m) => m.eliteDrop).length).toBe(1); // kese yalnız ejderden
+    expect(members.filter((m) => m.mobId === 'hortlak').length).toBe(2);
+  });
 
   it('Son Cendere: T4 canavarları dalga dalga sızar ve tavana uyar', () => {
     const { world } = setup();

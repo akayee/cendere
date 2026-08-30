@@ -42,7 +42,7 @@ export const POISON = {
 };
 
 export const SPAWN = {
-  T1_COUNT: 30, // maç başı T1 mob sayısı (doğum noktaları hariç her yerde)
+  T1_COUNT: 42, // maç başı T1 mob sayısı (doğum noktaları hariç her yerde)
   BOT_COUNT: 9, // maçı dolduran botlar (PLAN §10: koltuk doldurma)
   RING_RADIUS: 620, // oyuncu doğum halkasının merkeze uzaklığı (merkez = zindan)
   CLEAR_RADIUS: 40, // doğum noktalarının bu kadar yakınına mob doğmaz

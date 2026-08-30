@@ -51,9 +51,12 @@ describe('zoneSystem — cendere (kişisel GZ\'ler kaldırıldı)', () => {
 
   it('cendere içindeyken hasar yok', () => {
     const { world, player } = setup(PHASES[3].start + 5);
-    const hp0 = player.health.hp;
+    // Zindan yoğunlaştı: merkezdeki moblar saldırabilir — test yalnız
+    // CENDERE hasarını ölçer (çember içinde cendere yakmamalı).
+    let cendereHits = 0;
+    world.bus.on('cendere.damage', (e) => e.id === player.id && cendereHits++);
     for (let i = 0; i < 120; i++) step(world); // merkezde
-    expect(player.health.hp).toBe(hp0);
+    expect(cendereHits).toBe(0);
   });
 
   it('cendere hasarı yoğunlaşma kanalını bozar', () => {
