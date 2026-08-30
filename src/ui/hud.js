@@ -134,11 +134,18 @@ export function createHud() {
           zoneChip.style.display = 'none';
         }
         // Pickup bonusları GERÇEK stat değerleriyle: ⚔ saldırı % (pickup çarpanından),
-        // 🛡 toplam zırh (pickup + kart), 💨 hız bonusu % (temel hıza göre)
+        // 🛡 toplam zırh (pickup + kart), 💨 hız bonusu % (temel hıza göre).
+        // Sayaç eşik ödülüne (20) ulaşan tür ALTIN renge döner — usta işareti.
         const st = player.gather.stats;
         const atkPct = Math.round((Math.pow(ECON.ATK_DMG_MUL, st.atk) - 1) * 100);
         const spdPct = Math.round((player.motion.speed / player.motion.baseSpeed - 1) * 100);
-        matEl.textContent = `⚔ +%${atkPct} · 🛡 ${player.combat.mods.armor} · 💨 +%${spdPct}`;
+        const gild = (reached, txt) =>
+          reached ? `<span style="color:#ffd75e;text-shadow:0 0 6px #ffd75e99">${txt}</span>` : txt;
+        matEl.innerHTML = [
+          gild(st.atk >= ECON.MILESTONE_COUNT, `⚔ +%${atkPct}`),
+          gild(st.armor >= ECON.MILESTONE_COUNT, `🛡 ${player.combat.mods.armor}`),
+          gild(st.speed >= ECON.MILESTONE_COUNT, `💨 +%${spdPct}`),
+        ].join(' · ');
       }
       if (match) {
         matchEl.innerHTML =

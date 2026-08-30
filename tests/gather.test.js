@@ -68,7 +68,7 @@ describe('gatherSystem — temasla anında toplama', () => {
     expect(player.gather.pots).toBe(ECON.POT_MAX);
   });
 
-  it('speed pickup: +%3 hız, üst sınır toplam +%30 (sonrası yerde kalır)', () => {
+  it('speed pickup: +%3 hız; cap (+%30) dolunca da TOPLANIR — etki durur, sayaç ilerler', () => {
     const { world, player, cx, cy } = setup();
     const base = player.motion.speed;
     createResource(world, 'speed', cx + 8, cy);
@@ -76,13 +76,15 @@ describe('gatherSystem — temasla anında toplama', () => {
     expect(player.motion.speed).toBeCloseTo(base * (1 + ECON.SPEED_PER_PICKUP), 5);
     expect(player.gather.stats.speed).toBe(1);
 
-    // Cap: 10 pickup'tan sonrası alınmaz
+    // Cap: 10 pickup'tan sonrası hız VERMEZ ama yerde kalmaz (eşik sayacı işler)
     const capCount = Math.round(ECON.SPEED_PICKUP_CAP / ECON.SPEED_PER_PICKUP);
     player.gather.stats.speed = capCount;
+    const speedAtCap = player.motion.speed;
     const res2 = createResource(world, 'speed', cx + 8, cy);
-    for (let i = 0; i < 30; i++) step(world);
-    expect(world.entities.has(res2.id)).toBe(true); // yerde kaldı
-    expect(player.gather.stats.speed).toBe(capCount);
+    step(world);
+    expect(world.entities.has(res2.id)).toBe(false); // toplandı
+    expect(player.gather.stats.speed).toBe(capCount + 1); // sayaç ilerledi
+    expect(player.motion.speed).toBeCloseTo(speedAtCap, 5); // hız artmadı
   });
 
   it('hız kartları + speed pickup üst üste binse de toplam hız tavanı aşılamaz', () => {
@@ -183,7 +185,7 @@ describe('gatherSystem — temasla anında toplama', () => {
     expect(player.gather.channel).toBeNull();
   });
 
-  it('pot: tüketir, zamana yayarak doldurur, üst sınır 3 (mekanik değişmedi)', () => {
+  it('pot: tüketir, zamana yayarak doldurur (mekanik değişmedi)', () => {
     const { world, player } = setup();
     player.health.hp = 40;
     player.gather.pots = 2;
@@ -195,5 +197,112 @@ describe('gatherSystem — temasla anında toplama', () => {
     const before = player.health.hp;
     for (let i = 0; i < TICKS(ECON.POT_DURATION); i++) step(world);
     expect(player.health.hp).toBeGreaterThan(before + 20); // ~30 can
+  });
+});
+
+describe('eşik ödülleri (milestone) — 20 pickup = kalıcı bonus + aura', () => {
+  it('20. atk pickup: hasar ×1.25 bonusu, event ve aura — yalnız BİR kez', () => {
+    const { world, player, cx, cy } = setup('ocakci'); // uzmanlık atk DEĞİL
+    player.gather.stats.atk = ECON.MILESTONE_COUNT - 1;
+    const events = [];
+    world.bus.on('pickup.milestone', (e) => events.push(e));
+
+    const base = player.combat.auto.damage;
+    createResource(world, 'atk', cx + 8, cy);
+    step(world);
+    expect(player.gather.stats.atk).toBe(ECON.MILESTONE_COUNT);
+    expect(player.combat.auto.damage).toBeCloseTo(base * ECON.ATK_DMG_MUL * ECON.MILESTONE_ATK_MUL, 5);
+    expect(events).toHaveLength(1);
+    expect(events[0].resType).toBe('atk');
+    expect(events[0].id).toBe(player.id);
+    expect(player.render.auras).toEqual(['atk']);
+
+    // 21. pickup: normal etki sürer ama milestone TEKRAR tetiklenmez
+    const after20 = player.combat.auto.damage;
+    createResource(world, 'atk', cx + 8, cy);
+    step(world);
+    expect(player.combat.auto.damage).toBeCloseTo(after20 * ECON.ATK_DMG_MUL, 5);
+    expect(events).toHaveLength(1);
+    expect(player.render.auras).toEqual(['atk']);
+  });
+
+  it('20. armor pickup: ekstra +5 zırh', () => {
+    const { world, player, cx, cy } = setup('ocakci'); // uzmanlık armor DEĞİL
+    player.gather.stats.armor = ECON.MILESTONE_COUNT - 1;
+    createResource(world, 'armor', cx + 8, cy);
+    step(world);
+    expect(player.combat.mods.armor).toBe(ECON.ARMOR_PER_PICKUP + ECON.MILESTONE_ARMOR_ADD);
+    expect(player.render.auras).toEqual(['armor']);
+  });
+
+  it('20. speed pickup: cap sonrası bile +%10 milestone bonusu gelir', () => {
+    const { world, player, cx, cy } = setup();
+    player.gather.stats.speed = ECON.MILESTONE_COUNT - 1; // cap çoktan doldu (+%30'da durdu)
+    const before = player.motion.speed;
+    createResource(world, 'speed', cx + 8, cy);
+    step(world);
+    // Pickup başına +%3 işlemez (cap), milestone +%10 işler
+    expect(player.motion.speed).toBeCloseTo(before * (1 + ECON.MILESTONE_SPEED_ADD), 5);
+    expect(player.render.auras).toEqual(['speed']);
+  });
+
+  it('speed milestone mutlak ×1.5 hız tavanını AŞAMAZ', () => {
+    const { world, player, cx, cy } = setup();
+    player.motion.speed = player.motion.baseSpeed * ECON.SPEED_TOTAL_CAP; // kartlarla tavana dayandı
+    player.gather.stats.speed = ECON.MILESTONE_COUNT - 1;
+    createResource(world, 'speed', cx + 8, cy);
+    step(world);
+    expect(player.motion.speed).toBeLessThanOrEqual(player.motion.baseSpeed * ECON.SPEED_TOTAL_CAP + 1e-9);
+  });
+
+  it('birden fazla milestone: auras dizisinde üst üste okunur', () => {
+    const { world, player, cx, cy } = setup('nisanci'); // uzmanlık atk: 19+1=20 yine tek sayım
+    player.gather.stats.atk = ECON.MILESTONE_COUNT - 1;
+    player.gather.stats.armor = ECON.MILESTONE_COUNT - 1;
+    createResource(world, 'atk', cx + 8, cy);
+    step(world);
+    createResource(world, 'armor', cx + 8, cy);
+    step(world);
+    expect(player.render.auras).toEqual(['atk', 'armor']);
+  });
+});
+
+describe('pot kapasitesi otomatik büyür (3 bitki → kapasite 4)', () => {
+  it('3. bitkide kapasite 4 olur, 4. pot taşınır; event BİR kez yayınlanır', () => {
+    const { world, player, cx, cy } = setup('cengaver');
+    player.gather.pots = 2;
+    player.gather.stats.herb = ECON.POT_UPGRADE_AT - 1; // 2 bitki toplanmıştı
+    const events = [];
+    world.bus.on('pot.upgraded', (e) => events.push(e));
+
+    createResource(world, 'herb', cx + 8, cy);
+    step(world);
+    expect(player.gather.stats.herb).toBe(ECON.POT_UPGRADE_AT);
+    expect(player.gather.potMax).toBe(ECON.POT_MAX_UPGRADED);
+    expect(player.gather.pots).toBe(3);
+    expect(events).toHaveLength(1);
+    expect(events[0].potMax).toBe(ECON.POT_MAX_UPGRADED);
+
+    // 4. pot taşınır: eski POT_MAX'ta (3) artık yerde kalmaz
+    createResource(world, 'herb', cx + 8, cy);
+    step(world);
+    expect(player.gather.pots).toBe(ECON.POT_MAX_UPGRADED);
+    expect(events).toHaveLength(1); // tekrar tetiklenmedi
+
+    // Yeni kapasite (4) doluyken bitki yine yerde kalır
+    const res = createResource(world, 'herb', cx + 8, cy);
+    for (let i = 0; i < 10; i++) step(world);
+    expect(world.entities.has(res.id)).toBe(true);
+    expect(player.gather.pots).toBe(ECON.POT_MAX_UPGRADED);
+  });
+
+  it('canPickup ve pot ekleme GÜNCEL kapasiteyi kullanır (sabit POT_MAX değil)', () => {
+    const { world, player, cx, cy } = setup('ocakci'); // uzmanlık: +2 pot
+    player.gather.pots = ECON.POT_MAX; // eski kapasitede "dolu"
+    player.gather.potMax = ECON.POT_MAX_UPGRADED; // kapasite büyümüş
+    createResource(world, 'herb', cx + 8, cy);
+    step(world);
+    // pots < potMax olduğundan toplandı; ×2 pot bile tavanı (4) aşamadı
+    expect(player.gather.pots).toBe(ECON.POT_MAX_UPGRADED);
   });
 });

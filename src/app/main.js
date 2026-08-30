@@ -173,6 +173,29 @@ function startMatch(images, sfx, classId) {
     effects.spawnPoof(e.x, e.y);
     if (e.id === player.id) sfx.play('gather');
   });
+  // Eşik ödülü (20 pickup): patlama HERKESE görünür; banner + ses yalnız kendimize
+  const MILESTONE_INFO = {
+    atk: { name: 'SALDIRI USTASI', color: '#ff7a3d' },
+    armor: { name: 'ZIRH USTASI', color: '#9db8d9' },
+    speed: { name: 'HIZ USTASI', color: '#cfeeff' },
+  };
+  world.bus.on('pickup.milestone', (e) => {
+    const info = MILESTONE_INFO[e.resType];
+    if (!info) return;
+    effects.spawnMilestoneBurst(e.x, e.y, info.color);
+    effects.spawnText(e.x, e.y - 14, info.name, info.color);
+    if (e.id === player.id) {
+      banner.show(info.name, info.color);
+      addShake(camera, 2);
+      sfx.play('levelup');
+    }
+  });
+  world.bus.on('pot.upgraded', (e) => {
+    if (e.id === player.id) {
+      banner.show('POT KAPASİTESİ ' + e.potMax, '#ff8c96');
+      sfx.play('process');
+    }
+  });
   world.bus.on('gather.broken', (e) => {
     // Yalnızca kayda değer ilerleme kaybında ve sadece kendi kanalında göster
     if (e.id === player.id && e.reason === 'hasar' && e.progress > 0.4) {

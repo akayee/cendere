@@ -90,11 +90,11 @@ export function canPickup(ent, res) {
     const combatT = ent.combat?.inCombatT ?? 0;
     return combatT <= COMBAT.IN_COMBAT_TIME - COMBAT.LOOT_DELAY;
   }
-  if (res.resType === 'herb') return ent.gather.pots < ECON.POT_MAX; // pot doluysa yerde kalır
-  if (res.resType === 'speed') {
-    return ent.gather.stats.speed * ECON.SPEED_PER_PICKUP < ECON.SPEED_PICKUP_CAP; // cap doluysa yerde kalır
-  }
-  return true; // atk / armor her zaman
+  // GÜNCEL kapasite (sabit POT_MAX değil — 3 bitkide 4'e çıkar); doluysa yerde kalır
+  if (res.resType === 'herb') return ent.gather.pots < ent.gather.potMax;
+  // atk / armor / speed HER ZAMAN toplanır: speed'in +%3 etkisi cap'te durur ama
+  // sayaç eşik ödülüne (MILESTONE_COUNT) ilerlemeye devam eder
+  return true;
 }
 
 function collectTouching(world, ent) {
@@ -133,14 +133,48 @@ function applyPickup(world, ent, resType) {
     ent.combat.mods.armor += ECON.ARMOR_PER_PICKUP * mult;
     g.stats.armor++;
   } else if (resType === 'herb') {
-    g.pots = Math.min(ECON.POT_MAX, g.pots + mult);
+    g.stats.herb++; // ömürlük bitki sayacı (uzmanlık ×2 pot verse de 1 bitkidir)
+    // Kapasite artışı ÖNCE işler: 3. bitki kapasiteyi 4 yapar, potu da 4. slota taşır
+    if (g.stats.herb >= ECON.POT_UPGRADE_AT && g.potMax < ECON.POT_MAX_UPGRADED) {
+      g.potMax = ECON.POT_MAX_UPGRADED;
+      world.bus.emit('pot.upgraded', { id: ent.id, potMax: g.potMax });
+    }
+    g.pots = Math.min(g.potMax, g.pots + mult);
   } else if (resType === 'speed') {
-    ent.motion.speed = Math.min(
-      ent.motion.speed * (1 + ECON.SPEED_PER_PICKUP),
-      ent.motion.baseSpeed * ECON.SPEED_TOTAL_CAP // kartlarla üst üste binse de tavan
-    );
+    // Pickup başına +%3 etkisi cap'te durur; toplamak ve sayaç HEP devam eder
+    if (g.stats.speed * ECON.SPEED_PER_PICKUP < ECON.SPEED_PICKUP_CAP) {
+      ent.motion.speed = Math.min(
+        ent.motion.speed * (1 + ECON.SPEED_PER_PICKUP),
+        ent.motion.baseSpeed * ECON.SPEED_TOTAL_CAP // kartlarla üst üste binse de tavan
+      );
+    }
     g.stats.speed++;
   }
+
+  checkMilestone(world, ent, resType);
+}
+
+/** Eşik ödülü (güç görünürdür): türden MILESTONE_COUNT toplayana kalıcı bonus + aura. */
+function checkMilestone(world, ent, resType) {
+  const g = ent.gather;
+  if (!(resType in g.milestones)) return; // herb'in eşiği pot kapasitesidir, aurası yok
+  if (g.milestones[resType] || g.stats[resType] < ECON.MILESTONE_COUNT) return;
+  g.milestones[resType] = true;
+
+  if (resType === 'atk') {
+    ent.combat.auto.damage *= ECON.MILESTONE_ATK_MUL;
+  } else if (resType === 'armor') {
+    ent.combat.mods.armor += ECON.MILESTONE_ARMOR_ADD;
+  } else if (resType === 'speed') {
+    ent.motion.speed = Math.min(
+      ent.motion.speed * (1 + ECON.MILESTONE_SPEED_ADD),
+      ent.motion.baseSpeed * ECON.SPEED_TOTAL_CAP // mutlak tavan yine geçilemez
+    );
+  }
+
+  // Kalıcı görsel işaret: sim etiketi yazar, yorumunu render bilir (§8b/9)
+  ent.render.auras?.push(resType);
+  world.bus.emit('pickup.milestone', { id: ent.id, x: ent.transform.x, y: ent.transform.y, resType });
 }
 
 /** Ganimet Kesesi: Yankı Kartı — açanın SINIFINA uygun kart, yoksa +20 XP (PLAN §9). */

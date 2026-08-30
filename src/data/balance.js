@@ -75,9 +75,17 @@ export const ECON = {
   ATK_DMG_MUL: 1.04, // atk pickup'ı: otomatik saldırı hasarı ×1.04 (anında, kalıcı)
   ARMOR_PER_PICKUP: 1, // armor pickup'ı: anında +1 zırh
   SPEED_PER_PICKUP: 0.03, // speed pickup'ı: kalıcı +%3 hareket hızı...
-  SPEED_PICKUP_CAP: 0.3, // ...pickup'lardan gelen toplam en fazla +%30 (sonrası yerde kalır)
-  SPEED_TOTAL_CAP: 1.5, // toplam hız çarpanı tavanı (kart + pickup üst üste binse de)
+  SPEED_PICKUP_CAP: 0.3, // ...pickup başına etki toplam +%30'da durur (toplamak serbest — sayaç işler)
+  SPEED_TOTAL_CAP: 1.5, // toplam hız çarpanı tavanı (kart + pickup + milestone üst üste binse de)
+  // Eşik ödülleri: bir türden bu kadar pickup toplayan kalıcı görünür aura + bonus kazanır.
+  // Hiçbir atk/armor/speed pickup'ı "alınamaz" değildir — sayaç hep eşiğe ilerler.
+  MILESTONE_COUNT: 20, // tür başına eşik (her tür için bir kez tetiklenir)
+  MILESTONE_ATK_MUL: 1.25, // atk 20 → ekstra hasar ×1.25 (tek seferlik, kalıcı)
+  MILESTONE_ARMOR_ADD: 5, // armor 20 → ekstra +5 zırh
+  MILESTONE_SPEED_ADD: 0.1, // speed 20 → ekstra +%10 hız (SPEED_TOTAL_CAP yine aşılamaz)
   POT_MAX: 3, // taşınabilir pot (PLAN §9)
+  POT_MAX_UPGRADED: 4, // ömürlük POT_UPGRADE_AT bitki toplayınca kapasite buna çıkar
+  POT_UPGRADE_AT: 3, // pot kapasite artışı eşiği (toplam toplanan bitki)
   POT_HEAL_RATE: 12, // pot: saniyede can (2.5 sn'ye yayılır)
   POT_DURATION: 2.5,
   POT_DRINK_TIME: 0.5, // içme animasyonu — bu sürede yavaşlarsın

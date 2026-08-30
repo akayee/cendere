@@ -199,7 +199,7 @@ function nearestUsableResource(world, ent, radius, onlyType = null) {
   let bestDsq = radius * radius;
   for (const res of world.resources) {
     if (onlyType ? res.resType !== onlyType : res.resType === 'kese') continue;
-    if (res.resType !== 'kese' && !canPickup(ent, res)) continue; // pot/hız dolu: boşa yürüme
+    if (res.resType !== 'kese' && !canPickup(ent, res)) continue; // pot dolu: boşa yürüme (hız artık hep alınır)
     if (ai.avoidRes?.[res.id] > world.match.t) continue;
     const dsq = distSq(ent.transform.x, ent.transform.y, res.transform.x, res.transform.y);
     if (dsq < bestDsq) {

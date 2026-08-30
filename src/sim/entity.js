@@ -1,6 +1,7 @@
 // Entity fabrikaları — bileşen kompozisyonu (ARCHITECTURE.md §4).
 
 import { CLASSES } from '../data/classes.js';
+import { ECON } from '../data/balance.js';
 import { MOBS, T2_MOBS, T3_MOBS, T4_MOB } from '../data/mobs.js';
 import { RARITY, CARDS } from '../data/cards.js';
 import { addEntity } from './world.js';
@@ -34,7 +35,9 @@ export function createPlayer(world, classId, x, y, opts = {}) {
       build: [], // seçilen kart id'leri
     },
     gather: {
-      stats: { atk: 0, armor: 0, speed: 0 }, // toplanan pickup sayaçları (HUD gösterir)
+      stats: { atk: 0, armor: 0, speed: 0, herb: 0 }, // ömürlük pickup sayaçları (HUD + eşik ödülleri)
+      milestones: { atk: false, armor: false, speed: false }, // eşik ödülü tür başına BİR kez
+      potMax: ECON.POT_MAX, // güncel pot kapasitesi (POT_UPGRADE_AT bitkide POT_MAX_UPGRADED olur)
       pots: 1, // maça 1 potla başlanır
       channel: null, // aktifken {type:'focus', t, duration} — kanal artık YALNIZ yoğunlaşma için
       interrupt: false, // hasar yiyince combat bunu kaldırır → kanal bozulur
@@ -43,7 +46,8 @@ export function createPlayer(world, classId, x, y, opts = {}) {
     },
     // Oyuncuda input/'tan, botta aiBotSystem'den dolar — sim için fark yok (§4)
     input: { moveX: 0, moveY: 0, wantSkill: false, wantCards: false, pickCard: -1, wantGather: false, wantPot: false },
-    render: { sprite: opts.sprite ?? cls.sprite, animState: 'idle' },
+    // auras: eşik ödülü etiketleri ('atk'/'armor'/'speed') — sim YAZAR ama YORUMLAMAZ (§8b/9)
+    render: { sprite: opts.sprite ?? cls.sprite, animState: 'idle', auras: [] },
   };
   addEntity(world, ent);
   ent.combat.team = 'p' + ent.id; // PvP: herkes kendi takımı

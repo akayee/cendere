@@ -26,6 +26,11 @@ export function createEffects() {
       items.push({ type: 'beam', x, y, t: 0, life: 0.9 });
     },
 
+    /** Eşik ödülü patlaması: tür renginde genişleyen halka + kıvılcımlar (tek seferlik) */
+    spawnMilestoneBurst(x, y, color) {
+      items.push({ type: 'burst', x, y, color, t: 0, life: 0.7 });
+    },
+
     update(dt) {
       for (let i = items.length - 1; i >= 0; i--) {
         items[i].t += dt;
@@ -69,6 +74,26 @@ export function createEffects() {
           ctx.beginPath();
           ctx.ellipse(fx.x, fx.y, 6 + p * 22, (6 + p * 22) * 0.45, 0, 0, Math.PI * 2);
           ctx.stroke();
+        } else if (fx.type === 'burst') {
+          // Eşik ödülü: tür renginde genişleyen çift halka + dışa uçan kıvılcımlar
+          ctx.globalAlpha = (1 - p) * 0.9;
+          ctx.strokeStyle = fx.color;
+          ctx.lineWidth = 2 * (1 - p * 0.6);
+          const br = 5 + p * 24;
+          ctx.beginPath();
+          ctx.ellipse(fx.x, fx.y, br, br * 0.5, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.ellipse(fx.x, fx.y, br * 0.6, br * 0.3, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = fx.color;
+          for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2 + 0.7;
+            const sr = 4 + p * 20;
+            ctx.beginPath();
+            ctx.arc(fx.x + Math.cos(a) * sr, fx.y - 6 - p * 10 + Math.sin(a) * sr * 0.5, 1.6 * (1 - p), 0, Math.PI * 2);
+            ctx.fill();
+          }
         } else if (fx.type === 'poof') {
           ctx.globalAlpha = (1 - p) * 0.7;
           ctx.fillStyle = '#e8e8e0';
