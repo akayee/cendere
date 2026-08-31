@@ -37,7 +37,7 @@ for (let m = 0; m < MATCHES; m++) {
   for (const b of bots) if (!b.dead) S(b.classId).levelSum += b.progress.level;
 }
 
-console.log(`\n${MATCHES} maç (9 bot: 3 cengaver / 3 nisanci / 3 ocakci)\n`);
+console.log(`\n${MATCHES} maç (9 bot: 3 cengaver / 2 nisanci / 2 ocakci / 2 kementci)\n`);
 console.log('sınıf     | galibiyet | kill | ölüm | maç sonu hayatta | ort. seviye (hayatta)');
 for (const [cls, s] of Object.entries(stats)) {
   const avgLvl = s.aliveAtEnd > 0 ? (s.levelSum / s.aliveAtEnd).toFixed(1) : '-';

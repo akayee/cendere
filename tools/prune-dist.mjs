@@ -11,7 +11,7 @@ const DIST_PACK = join(DIST, 'pack');
 // Kullanılan yolların ön ekleri (SHEETS + kart/lobi ikonları + sesler)
 const KEEP = [
   'Actor/Characters/Shadow.png',
-  ...['BlueNinja', 'Hunter', 'SorcererOrange', 'NinjaRed', 'NinjaGray', 'NinjaGreen', 'NinjaDark', 'CamouflageGreen', 'NinjaMageBlack'].map(
+  ...['BlueNinja', 'Hunter', 'SorcererOrange', 'GladiatorBlue', 'NinjaRed', 'NinjaGray', 'NinjaGreen', 'NinjaDark', 'CamouflageGreen', 'NinjaMageBlack', 'FighterRed', 'MaskedNinja'].map(
     (n) => `Actor/Characters/${n}/SeparateAnim/`
   ),
   ...['Bamboo', 'Slime', 'Mushroom', 'Snake', 'Cyclope', 'Skull', 'SpiderRed', 'Dragon', 'Flam'].map(
@@ -24,7 +24,7 @@ const KEEP = [
   'Items/Potion/LifePot.png',
   'Items/Potion/Medipack.png',
   'Items/Potion/Hear.png',
-  ...['Ninjaku', 'Sword', 'Sword2', 'Sai', 'Lance', 'BigSword', 'Bone', 'Whip', 'Hammer', 'Bow', 'Bow2', 'Katana', 'MagicWand'].map(
+  ...['Ninjaku', 'Sword', 'Sword2', 'Sai', 'Lance', 'Lance2', 'BigSword', 'Bone', 'Whip', 'Hammer', 'Bow', 'Bow2', 'Katana', 'MagicWand'].map(
     (n) => `Items/Weapons/${n}/Sprite.png`
   ),
   'Items/Scroll/ScrollFire.png',

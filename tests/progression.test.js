@@ -4,7 +4,7 @@ import { createPlayer, createMob, createDummy } from '../src/sim/entity.js';
 import { step } from '../src/sim/pipeline.js';
 import { applyCard } from '../src/sim/systems/progressionSystem.js';
 import { xpForLevel } from '../src/data/balance.js';
-import { CARDS } from '../src/data/cards.js';
+import { CARDS, rarityWeightsForLevel, EPIC_MIN_LEVEL } from '../src/data/cards.js';
 
 function setup() {
   const world = createWorld(888);
@@ -118,13 +118,14 @@ describe('progressionSystem', () => {
     expect(xpEvents[0].amount).toBeGreaterThan(0);
   });
 
-  it('unique kartlar (girdap/zehirli_kenar/yanki_becerisi) build\'deyken teklif havuzuna GİRMEZ', () => {
+  it('unique kartlar build\'deyken teklif havuzuna GİRMEZ', () => {
     // Bu kartların ikinci kopyası hiçbir şey vermez (boolean/set etkiler) — veri sözleşmesi
     const uniques = CARDS.filter((c) => c.unique).map((c) => c.id);
-    expect(uniques.sort()).toEqual(['girdap', 'yanki_becerisi', 'zehirli_kenar']);
-    // +1 mermi kartları İSTİFLENİR: unique olmamalı
+    expect(uniques.sort()).toEqual(['girdap', 'pranga_becerisi', 'yanki_becerisi', 'zehirli_kenar']);
+    // +1 mermi/vuruş kartları İSTİFLENİR: unique olmamalı
     expect(CARDS.find((c) => c.id === 'catal_ok').unique).toBeUndefined();
     expect(CARDS.find((c) => c.id === 'cifte_kor').unique).toBeUndefined();
+    expect(CARDS.find((c) => c.id === 'cifte_vurus').unique).toBeUndefined();
 
     const { world, player } = setup(); // cengaver: girdap havuzunda olurdu
     player.progress.build = [...uniques];
@@ -148,7 +149,8 @@ describe('progressionSystem', () => {
       'maxHpAdd', 'speedMul', 'autoDamageAdd', 'autoCooldownMul', 'autoRangeAdd',
       'skillPowerMul', 'skillCooldownMul', 'armorAdd', 'critAdd', 'lifestealAdd',
       'regenAdd', 'killMaxHpAdd',
-      'autoArcFull', 'autoProjAdd', 'poisonOnHit', 'skillChargesSet',
+      'autoArcFull', 'autoProjAdd', 'autoStrikeAdd', 'poisonOnHit', 'skillChargesSet',
+      'skillSlow',
     ]);
     for (const card of CARDS) {
       for (const key of Object.keys(card.effect)) {
@@ -163,5 +165,53 @@ describe('progressionSystem', () => {
     applyCard(player, 'kalin_post');
     expect(player.health.maxHp).toBe(base + 20);
     expect(player.health.hp).toBe(base + 20);
+  });
+});
+
+describe('levele göre kart nadirliği (cards.js rarityWeightsForLevel)', () => {
+  it('ağırlık eğrisi: EPIC_MIN_LEVEL öncesi destansı 0; sonra levelle artar; tavanlar; toplam 100', () => {
+    for (let lvl = 1; lvl < EPIC_MIN_LEVEL; lvl++) expect(rarityWeightsForLevel(lvl).epic).toBe(0);
+    expect(rarityWeightsForLevel(EPIC_MIN_LEVEL).epic).toBe(4); // açılış ağırlığı
+    expect(rarityWeightsForLevel(EPIC_MIN_LEVEL + 3).epic).toBe(10); // levelle artar
+    expect(rarityWeightsForLevel(30).epic).toBe(22); // tavan
+    expect(rarityWeightsForLevel(1).rare).toBe(31); // 30 + level
+    expect(rarityWeightsForLevel(30).rare).toBe(44); // tavan
+    for (const lvl of [1, EPIC_MIN_LEVEL, 9, 30]) {
+      const w = rarityWeightsForLevel(lvl);
+      expect(w.common + w.rare + w.epic).toBe(100); // common = kalan ağırlık
+      expect(w.common).toBeGreaterThan(0);
+    }
+  });
+
+  it('level 1\'de teklif ASLA destansı içermez; yüksek levelde çıkabilir (seed\'li RNG)', () => {
+    const { world, player } = setup();
+    const rarityOf = (id) => CARDS.find((c) => c.id === id).rarity;
+    let offer = null;
+    world.bus.on('cards.offered', (e) => (offer = e.cards));
+    player.progress.pendingCards = 999; // teklif çevrimleri bitmesin
+
+    // Level 1: çok sayıda teklif — hiçbirinde destansı yok (ağırlık 0 → havuza girmez)
+    for (let r = 0; r < 40; r++) {
+      offer = null;
+      player.input.wantCards = true;
+      step(world);
+      expect(offer).toHaveLength(3);
+      for (const id of offer) expect(rarityOf(id)).not.toBe('epic');
+      player.input.pickCard = 0; // teklifi tüket ki sonraki tur yeniden çekilsin
+      step(world);
+    }
+
+    // Yüksek level: destansı artık çıkabilmeli (aynı deterministik RNG akışı)
+    player.progress.level = 12;
+    let sawEpic = false;
+    for (let r = 0; r < 60 && !sawEpic; r++) {
+      offer = null;
+      player.input.wantCards = true;
+      step(world);
+      sawEpic = offer.some((id) => rarityOf(id) === 'epic');
+      player.input.pickCard = 0;
+      step(world);
+    }
+    expect(sawEpic).toBe(true);
   });
 });

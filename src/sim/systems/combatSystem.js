@@ -2,7 +2,7 @@
 // PvE ve PvP aynı hasar yolu — hedef filtresi takımdır (PLAN.md §9).
 
 import { distSq } from '../../core/vec2.js';
-import { COMBAT, SIM, XP, POISON } from '../../data/balance.js';
+import { COMBAT, SIM, XP, POISON, SKILL_SLOW } from '../../data/balance.js';
 
 /** Zehirliyken HİÇBİR iyileşme işlemez (PLAN §9 — Ultima usulü). */
 export function canHeal(ent) {
@@ -17,6 +17,15 @@ export function applyPoison(world, target, dps, duration, sourceId) {
   if (fresh) {
     world.bus.emit('poison.applied', { id: target.id, x: target.transform.x, y: target.transform.y });
   }
+}
+
+/** KEMENT (root): hedef yere sabitlenir — hareket EDEMEZ ama saldırı/beceri serbest
+ *  (movementSystem uygular; atılma başlatma engeli tryStartSkill'de). Yığılmaz;
+ *  yeni isabet süreyi tazeler (asla kısaltmaz). Hasar 0 olsa da uygulanır. */
+export function applyRoot(world, target, duration) {
+  if (!target.motion || target.kind === 'dummy') return;
+  target.motion.root = { t: Math.max(duration, target.motion.root?.t ?? 0) };
+  world.bus.emit('root.applied', { id: target.id, x: target.transform.x, y: target.transform.y });
 }
 
 /**
@@ -84,6 +93,23 @@ export function combatSystem(world) {
 
     if (ent.dead) continue;
 
+    // --- Çifte Vuruş yankıları: savuruşta yakalanan hedeflere gecikmeli tekrar hasar.
+    // Tick tabanlı sayaç — determinizm korunur; hedef öldüyse/ulaşılmazsa vuruş yanar.
+    if (c.echoStrikes?.length) {
+      for (let i = c.echoStrikes.length - 1; i >= 0; i--) {
+        const s = c.echoStrikes[i];
+        s.t -= SIM.DT;
+        if (s.t > 0) continue;
+        for (const id of s.ids) {
+          const other = world.entities.get(id);
+          if (other && !other.dead && canAttack(world, ent, other)) {
+            applyDamage(world, other, s.damage, ent);
+          }
+        }
+        c.echoStrikes.splice(i, 1);
+      }
+    }
+
     if (c.buffAtkT > 0) c.buffAtkT -= SIM.DT;
     if (c.inCombatT > 0) c.inCombatT -= SIM.DT; // savaş hali: oto-toplama bekler
     if (c.stunT > 0) {
@@ -127,6 +153,9 @@ function tryStartSkill(world, ent) {
   dy /= len;
 
   const s = c.skill;
+  // KEMENT (root): yere sabitken ATILMA başlatılamaz — beceri hakkı/cooldown yanmaz.
+  // Hareketsiz beceriler (ok/alev/kement) serbesttir (root yalnız hareketi kilitler).
+  if (s.type === 'dash' && ent.motion.root) return;
   if (s.type === 'dash') {
     // Rakibe atlama: leapRange içindeki en yakın CANLI rakip (oyuncu/bot — MOB DEĞİL)
     // varsa atılma onun O ANKİ konumuna kilitlenir: tek atılım, sürekli takip yok.
@@ -163,6 +192,7 @@ function tryStartSkill(world, ent) {
       ownerId: ent.id,
       targetId: target.id,
       homing: true, // hedefi takip eder: engel durdurmaz, KAÇIRMAZ
+      fromSkill: true, // beceri kaynaklı hasar: Pranga yavaşlatması buradan tetiklenir
       ttl: 3,
       kind: 'homingArrow',
     });
@@ -185,14 +215,46 @@ function tryStartSkill(world, ent) {
       ownerId: ent.id,
       ttl: s.areaDuration,
       tickAcc: 0,
+      fromSkill: true, // tick hasarı da beceri kaynaklıdır (Pranga yavaşlatır)
     });
     for (const other of world.movers) {
       if (other === ent || !canAttack(world, ent, other)) continue;
       if (distSq(px, py, other.transform.x, other.transform.y) < s.radius * s.radius) {
-        applyDamage(world, other, burst, ent);
+        applyDamage(world, other, burst, ent, { skillHit: true });
       }
     }
     world.bus.emit('area.spawned', { id: ent.id, x: px, y: py, r: s.radius });
+  } else if (s.type === 'snareShot') {
+    // Kement: düz skillshot — hedefin O ANKİ konumuna nişan alınır, mermi düz uçar
+    // (kaçılabilir) ama hızlı + geniş çarpışmalı (tutturması kolay); engele takılır.
+    // Menzilde hedef YOKSA harcanmaz (Şaşmaz Ok deseni — uzun cooldown boşa yanmasın).
+    const range = c.auto.range * (s.rangeMul ?? 1);
+    const target = nearestTarget(world, ent, range);
+    if (!target) {
+      world.bus.emit('skill.noTarget', { id: ent.id });
+      return; // cooldown başlamaz
+    }
+    const tx = target.transform.x - ent.transform.x;
+    const ty = target.transform.y - ent.transform.y;
+    const td = Math.hypot(tx, ty) || 1;
+    // Hedefe dön (4 yönlü sprite: baskın eksen) — auto ile aynı dil
+    if (Math.abs(tx) >= Math.abs(ty)) ent.transform.dir = tx < 0 ? 'left' : 'right';
+    else ent.transform.dir = ty < 0 ? 'up' : 'down';
+    world.projectiles.push({
+      x: ent.transform.x,
+      y: ent.transform.y - 6,
+      vx: (tx / td) * s.projSpeed,
+      vy: (ty / td) * s.projSpeed,
+      damage: s.damage, // sembolik — gücü kontroldedir
+      team: c.team,
+      ownerId: ent.id,
+      radius: s.projRadius, // geniş çarpışma: tutturması kolay
+      snare: s.rootDuration, // isabet: hedef yere sabitlenir (projectileSystem uygular)
+      fromSkill: true, // beceri kaynaklı hasar: Pranga yavaşlatması buradan tetiklenir
+      ttl: (range + 14) / s.projSpeed,
+      kind: 'kement',
+    });
+    c.swingT = c.auto.swingTime;
   }
   c.charges--;
   c.skillCd = s.cooldown;
@@ -214,7 +276,7 @@ function updateDash(world, ent) {
     const rr = ent.body.radius + other.body.radius + 3;
     if (distSq(ent.transform.x, ent.transform.y, other.transform.x, other.transform.y) < rr * rr) {
       c.dash.hitIds.push(other.id);
-      applyDamage(world, other, c.skill.damage, ent);
+      applyDamage(world, other, c.skill.damage, ent, { skillHit: true });
     }
   }
 }
@@ -301,6 +363,7 @@ function tryAutoAttack(world, ent) {
   } else {
     // Yakın dövüş: yay içindeki TÜM hedeflere hasar
     const halfArc = c.auto.arc / 2;
+    const hitIds = [];
     for (const other of world.movers) {
       if (other === ent || !canAttack(world, ent, other)) continue;
       const dx = other.transform.x - t.x;
@@ -309,7 +372,18 @@ function tryAutoAttack(world, ent) {
       let diff = Math.atan2(dy, dx) - facing;
       while (diff > Math.PI) diff -= 2 * Math.PI;
       while (diff < -Math.PI) diff += 2 * Math.PI;
-      if (Math.abs(diff) <= halfArc) applyDamage(world, other, c.auto.damage, ent);
+      if (Math.abs(diff) <= halfArc) {
+        applyDamage(world, other, c.auto.damage, ent);
+        hitIds.push(other.id);
+      }
+    }
+    // Çifte Vuruş: AYNI hedeflere, STRIKE_ECHO_DELAY arayla ekstra vuruş(lar) planla
+    const extra = c.auto.strikeAdd ?? 0;
+    if (extra > 0 && hitIds.length > 0) {
+      c.echoStrikes ??= [];
+      for (let k = 1; k <= extra; k++) {
+        c.echoStrikes.push({ t: k * COMBAT.STRIKE_ECHO_DELAY, ids: hitIds, damage: c.auto.damage });
+      }
     }
     world.bus.emit('player.attack', { id: ent.id, x: t.x, y: t.y, angle: facing });
   }
@@ -337,7 +411,18 @@ function tryTouchAttack(world, ent) {
 
 // --- Hasar -------------------------------------------------------------
 
-export function applyDamage(world, target, amount, source) {
+/** Pranga Becerisi: beceri isabeti hedefi yavaşlatır (tüm sınıflarda AYNI sabit —
+ *  balance.js SKILL_SLOW). Yığılmaz; yeni isabet süreyi tazeler. movementSystem uygular. */
+function applySkillSlow(world, target) {
+  if (!target.motion || target.kind === 'dummy') return;
+  target.motion.slow = { t: SKILL_SLOW.duration, mul: SKILL_SLOW.speedMul };
+  world.bus.emit('slow.applied', { id: target.id, x: target.transform.x, y: target.transform.y });
+}
+
+/** opts.skillHit: hasar BECERİ kaynaklı (dash / şaşmaz ok / alan yakması — ileride
+ *  eklenecek sınıf becerileri de bu bayrakla geçmeli). Beceri → yavaşlatma (Pranga)
+ *  TEK noktadan, buradan uygulanır. */
+export function applyDamage(world, target, amount, source, opts) {
   // Kırık kukla vurulamaz: hasar da XP de yok (onarımı bekle)
   if (target.kind === 'dummy' && target.health.brokenT > 0) return;
 
@@ -377,6 +462,9 @@ export function applyDamage(world, target, amount, source) {
   if (srcMods?.poisonOnHit) {
     applyPoison(world, target, POISON.CARD_DPS, POISON.CARD_DURATION, source.id);
   }
+
+  // Pranga Becerisi kartı: beceri kaynaklı HER hasar hedefi yavaşlatır
+  if (opts?.skillHit && srcMods?.skillSlow) applySkillSlow(world, target);
 
   // Geri itme: kaynaktan uzağa (kuklalar yerinden oynamaz)
   if (target.kind !== 'dummy') {

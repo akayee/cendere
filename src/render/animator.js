@@ -70,6 +70,23 @@ export function drawCharacter(ctx, images, ent, x, y, timeSec) {
   // Eşik ödülü auraları: kalıcı, HERKESE görünür (güç görünürdür — PLAN §6 felsefesi)
   if (ent.render.auras?.length > 0 && !broken) drawAuras(ctx, ent.render.auras, x, y, timeSec);
 
+  // KEMENT (root): ayak hizasında halat halkası + kazık düğümleri — sabitlenen
+  // HERKESE okunur ("şimdi bas" istihbaratı; zehir görünürlüğüyle aynı felsefe)
+  if (ent.motion?.root && !broken) {
+    ctx.strokeStyle = '#e0b36a';
+    ctx.globalAlpha = 0.85;
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.ellipse(Math.round(x), Math.round(y) + 1, 6.5, 3, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#8a5a2b';
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      ctx.fillRect(Math.round(x + Math.cos(a) * 6.5) - 1, Math.round(y + 1 + Math.sin(a) * 3) - 1, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
   ctx.drawImage(
     img,
     col * set.frameW, frame * set.frameH, set.frameW, set.frameH,

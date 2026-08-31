@@ -13,7 +13,9 @@ export function createPlayer(world, classId, x, y, opts = {}) {
     kind: 'player',
     classId,
     transform: { x, y, prevX: x, prevY: y, dir: 'down' },
-    motion: { velX: 0, velY: 0, speed: cls.speed, baseSpeed: cls.speed }, // baseSpeed: hız tavanı referansı
+    // baseSpeed: hız tavanı referansı · slow: aktifken {t, mul} süreli yavaşlatma (Pranga)
+    // root: aktifken {t} yere sabitleme (Kement) — hareket yok, saldırı/beceri serbest
+    motion: { velX: 0, velY: 0, speed: cls.speed, baseSpeed: cls.speed, slow: null, root: null },
     body: { radius: cls.radius, solid: true },
     health: { hp: cls.hp, maxHp: cls.hp, hurtT: 0, killHpGain: 0 }, // killHpGain: Avcı İçgüdüsü birikimi (KILL_MAXHP_CAP'te durur)
     combat: {
@@ -153,7 +155,7 @@ export function createMob(world, mobId, x, y) {
     kind: 'mob',
     mobId,
     transform: { x, y, prevX: x, prevY: y, dir: 'down' },
-    motion: { velX: 0, velY: 0, speed: def.speed },
+    motion: { velX: 0, velY: 0, speed: def.speed, slow: null, root: null }, // slow: yavaşlatma (Pranga) · root: sabitleme (Kement)
     body: { radius: def.radius, solid: true },
     health: { hp: def.hp, maxHp: def.hp, hurtT: 0 },
     combat: { team: 'mob', touchDamage: def.damage, attackCd: 0 },

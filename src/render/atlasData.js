@@ -12,6 +12,9 @@ const CHAR_SHEETS = {
   ninja: CHAR('BlueNinja'),
   hunter: CHAR('Hunter'),
   sorcerer: CHAR('SorcererOrange'),
+  kementci: CHAR('GladiatorBlue'), // retiarius: ağ/kement gladyatörü
+  fighterRed: CHAR('FighterRed'),
+  maskedNinja: CHAR('MaskedNinja'),
   ninjaRed: CHAR('NinjaRed'),
   ninjaGray: CHAR('NinjaGray'),
   ninjaGreen: CHAR('NinjaGreen'),
@@ -207,7 +210,7 @@ export const CHAR_ANIMS = {
 };
 
 // İnsan/bot karakter setleri: hepsi aynı SeparateAnim düzeni (16px, 4 yön sütunu)
-for (const key of ['ninja', 'hunter', 'sorcerer', 'ninjaRed', 'ninjaGray', 'ninjaGreen', 'ninjaDark', 'camoGreen', 'mageBlack']) {
+for (const key of ['ninja', 'hunter', 'sorcerer', 'kementci', 'ninjaRed', 'ninjaGray', 'ninjaGreen', 'ninjaDark', 'camoGreen', 'mageBlack', 'fighterRed', 'maskedNinja']) {
   CHAR_ANIMS[key] = {
     frameW: 16,
     frameH: 16,

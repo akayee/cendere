@@ -3,7 +3,7 @@
 // kendiliğinden açılmaz: oyuncu wantCards intent'iyle ister, teklif kalıcıdır.
 
 import { xpForLevel, XP } from '../../data/balance.js';
-import { CARDS, RARITY } from '../../data/cards.js';
+import { CARDS, rarityWeightsForLevel } from '../../data/cards.js';
 
 export function progressionSystem(world) {
   for (const ent of world.movers) {
@@ -51,15 +51,21 @@ export function progressionSystem(world) {
   }
 }
 
-/** 3 kartlık teklif: nadirlik ağırlıklı, tekrarsız; sınıf kartları filtreli.
- *  unique kartların (girdap, zehirli_kenar, yanki_becerisi) ikinci kopyası hiçbir
- *  şey vermez — build'de olan unique kart havuza hiç girmez. */
+/** 3 kartlık teklif: nadirlik ağırlıklı (LEVELE bağlı — düşük levelde Destansı
+ *  hiç çıkmaz, level arttıkça nadir/destansı ağırlığı büyür; cards.js
+ *  rarityWeightsForLevel), tekrarsız; sınıf kartları filtreli.
+ *  unique kartların ikinci kopyası hiçbir şey vermez — build'de olan unique
+ *  kart havuza hiç girmez. */
 function rollOffer(world, ent) {
   const offer = [];
+  const weights = rarityWeightsForLevel(ent.progress.level);
   const pool = CARDS.filter(
-    (c) => (!c.classId || c.classId === ent.classId) && !(c.unique && ent.progress.build.includes(c.id))
+    (c) =>
+      weights[c.rarity] > 0 && // 0 ağırlıklı nadirlik (düşük levelde Destansı) havuza HİÇ girmez
+      (!c.classId || c.classId === ent.classId) &&
+      !(c.unique && ent.progress.build.includes(c.id))
   );
-  const totalW = (c) => RARITY[c.rarity].weight;
+  const totalW = (c) => weights[c.rarity];
   for (let i = 0; i < XP.CARD_CHOICES && pool.length > 0; i++) {
     let sum = 0;
     for (const c of pool) sum += totalW(c);
@@ -98,10 +104,14 @@ export function applyCard(ent, cardId) {
     if (c.skill.type === 'dash') c.skill.damage *= e.skillPowerMul;
     else if (c.skill.type === 'homingShot') c.skill.damageMul *= e.skillPowerMul;
     else if (c.skill.type === 'burnArea') c.skill.dps *= e.skillPowerMul;
+    else if (c.skill.type === 'snareShot') c.skill.damage *= e.skillPowerMul; // kement: sembolik hasar ölçeklenir (root süresi sabit)
   }
   if (e.skillCooldownMul) c.skill.cooldown *= e.skillCooldownMul;
   if (e.autoArcFull) c.auto.arc = Math.PI * 2; // Girdap: tam daire savuruş
   if (e.autoProjAdd) c.auto.projCount = (c.auto.projCount ?? 1) + e.autoProjAdd;
+  // Çifte Vuruş: savuruş başına ekstra yankı vuruşu (combatSystem gecikmeyle çözer)
+  if (e.autoStrikeAdd) c.auto.strikeAdd = (c.auto.strikeAdd ?? 0) + e.autoStrikeAdd;
+  if (e.skillSlow) c.mods.skillSlow = true; // Pranga: beceri isabetleri yavaşlatır
   if (e.poisonOnHit) c.mods.poisonOnHit = true;
   if (e.skillChargesSet) {
     c.maxCharges = e.skillChargesSet;

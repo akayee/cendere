@@ -22,10 +22,12 @@ const WRAP_STYLE = {
 export function showLobby(onStart) {
   const el = document.createElement('div');
   Object.assign(el.style, WRAP_STYLE);
+  el.style.overflowY = 'auto'; // 2×2 sınıf ızgarası kısa ekranda taşarsa kaydırılabilsin
   el.innerHTML =
     `<div style="font:bold 44px Georgia,serif;letter-spacing:8px;color:#ffd75e;text-shadow:0 0 24px #ffb54566">CENDERE</div>` +
     `<div style="font:13px sans-serif;opacity:0.7;margin:6px 0 26px">Son kalan kazanır. Cendere daralıyor.</div>` +
-    `<div id="lobby-classes" style="display:flex;gap:14px"></div>` +
+    // 4 sınıf: dar ekranda 2×2'ye sarar (wrap); genişte tek sıra
+    `<div id="lobby-classes" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:96vw"></div>` +
     `<div id="lobby-start" style="margin-top:30px;padding:12px 46px;border-radius:8px;background:linear-gradient(160deg,#ffd75e,#c98a2e);color:#221a08;font:bold 17px sans-serif;cursor:pointer;box-shadow:0 4px 16px #0009">MAÇA BAŞLA</div>` +
     // İkincil buton: altın dilinin soluk/çerçeveli hali — kart kataloğunu açar
     `<div id="lobby-cards" style="margin-top:12px;padding:9px 34px;border-radius:8px;background:rgba(255,215,94,0.08);border:1px solid rgba(255,215,94,0.45);color:#ffd75e;font:bold 13px sans-serif;letter-spacing:1px;cursor:pointer">KARTLAR</div>`;
@@ -58,7 +60,8 @@ export function showLobby(onStart) {
       `</div>` +
       `<div style="font:10px monospace;color:#8cf58c;margin-top:7px">⛏ ${f.perk}</div>`;
     Object.assign(card.style, {
-      width: 'min(30vw, 185px)',
+      // 140px tabanı: telefon dikeyde 4 kart tek sıraya sıkışmak yerine 2×2 sarar
+      width: 'clamp(140px, 22vw, 185px)',
       padding: '12px 10px 12px',
       borderRadius: '12px',
       background: 'linear-gradient(170deg,#2b2749,#171430)',

@@ -95,7 +95,22 @@ export function createRenderer(canvas, images, map, effects) {
 
     // Mermiler
     for (const p of world.projectiles) {
-      if (p.kind === 'bolt') {
+      if (p.kind === 'kement') {
+        // Kement: dönen halat halkası + kısa ip izi — skillshot uzaktan okunur
+        const a = Math.atan2(p.vy, p.vx);
+        ctx.strokeStyle = 'rgba(224,179,106,0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(p.x - Math.cos(a) * 10, p.y - Math.sin(a) * 10);
+        ctx.lineTo(p.x - Math.cos(a) * 3, p.y - Math.sin(a) * 3);
+        ctx.stroke();
+        ctx.strokeStyle = '#e0b36a';
+        ctx.lineWidth = 1.6;
+        const squish = 0.6 + 0.4 * Math.abs(Math.sin(timeSec * 12)); // dönüş yanılsaması
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, 3.2, 3.2 * squish, a, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (p.kind === 'bolt') {
         ctx.fillStyle = '#ffb545';
         ctx.beginPath();
         ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2);

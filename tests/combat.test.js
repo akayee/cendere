@@ -5,7 +5,7 @@ import { step } from '../src/sim/pipeline.js';
 import { applyDamage, applyPoison } from '../src/sim/systems/combatSystem.js';
 import { applyCard } from '../src/sim/systems/progressionSystem.js';
 import { CLASSES } from '../src/data/classes.js';
-import { COMBAT } from '../src/data/balance.js';
+import { COMBAT, SIM, SKILL_SLOW } from '../src/data/balance.js';
 
 function setup() {
   const world = createWorld(555);
@@ -225,5 +225,72 @@ describe('combatSystem', () => {
     expect(ended).not.toBeNull();
     expect(ended.win).toBe(false);
     expect(world.match.over).toBe(true);
+  });
+});
+
+describe('Çifte Vuruş (autoStrikeAdd) — savuruşun yankı vuruşu', () => {
+  const ECHO_TICKS = Math.ceil(COMBAT.STRIKE_ECHO_DELAY / SIM.DT) + 1;
+
+  it('savuruş aynı hedefe kısa gecikmeyle ikinci kez vurur; kartsız vurmaz', () => {
+    const { world, player, cx, cy } = setup();
+    applyCard(player, 'cifte_vurus');
+    const dummy = createDummy(world, cx + 12, cy);
+    const dmg = player.combat.auto.damage;
+    step(world); // ilk savuruş
+    expect(dummy.health.hp).toBe(dummy.health.maxHp - dmg);
+    for (let i = 0; i < ECHO_TICKS; i++) step(world); // yankı iner (sonraki savuruştan önce)
+    expect(dummy.health.hp).toBe(dummy.health.maxHp - 2 * dmg);
+  });
+
+  it('İSTİFLENİR: iki kopya = savuruş başına 2 yankı (toplam 3 vuruş)', () => {
+    const { world, player, cx, cy } = setup();
+    applyCard(player, 'cifte_vurus');
+    applyCard(player, 'cifte_vurus');
+    expect(player.combat.auto.strikeAdd).toBe(2);
+    const dummy = createDummy(world, cx + 12, cy);
+    const dmg = player.combat.auto.damage;
+    step(world);
+    for (let i = 0; i < 2 * ECHO_TICKS; i++) step(world);
+    expect(dummy.health.hp).toBe(dummy.health.maxHp - 3 * dmg);
+  });
+});
+
+describe('Pranga Becerisi (skillSlow) — beceri isabeti yavaşlatır', () => {
+  it('beceri kaynaklı hasar SKILL_SLOW basar; süre bitince kalkar; beceri dışı hasar basmaz', () => {
+    const { world, player, cx, cy } = setup();
+    applyCard(player, 'pranga_becerisi');
+    const mob = createMob(world, 'slime', cx + 500, cy); // menzil dışı — elle vurulur
+    // Beceri kaynaklı hasar (tüm beceriler applyDamage'e bu bayrakla gelir)
+    applyDamage(world, mob, 3, player, { skillHit: true });
+    expect(mob.motion.slow).toEqual({ t: SKILL_SLOW.duration, mul: SKILL_SLOW.speedMul });
+    // movementSystem süreyi tüketir
+    for (let i = 0; i <= Math.ceil(SKILL_SLOW.duration / SIM.DT); i++) step(world);
+    expect(mob.motion.slow).toBeNull();
+    // Beceri DIŞI hasar (oto-saldırı yolu) yavaşlatmaz
+    applyDamage(world, mob, 3, player);
+    expect(mob.motion.slow).toBeNull();
+  });
+
+  it('uçtan uca: kartla Atılma (dash) isabeti yavaşlatır — dash hasarı beceri sayılır', () => {
+    const { world, player, cx, cy } = setup();
+    applyCard(player, 'pranga_becerisi');
+    const mob = createMob(world, 'slime', cx + 30, cy);
+    player.combat.auto = { ...player.combat.auto, damage: 0 }; // oto sustur — yalnız dash vursun
+    player.input.moveX = 1;
+    player.input.wantSkill = true;
+    for (let i = 0; i < 20 && !mob.motion.slow; i++) step(world);
+    expect(mob.health.hp).toBeLessThan(mob.health.maxHp);
+    expect(mob.motion.slow).not.toBeNull();
+  });
+
+  it('kart yokken beceri hasarı yavaşlatmaz', () => {
+    const { world, player, cx, cy } = setup();
+    const mob = createMob(world, 'slime', cx + 30, cy);
+    player.combat.auto = { ...player.combat.auto, damage: 0 };
+    player.input.moveX = 1;
+    player.input.wantSkill = true;
+    for (let i = 0; i < 20; i++) step(world);
+    expect(mob.health.hp).toBeLessThan(mob.health.maxHp);
+    expect(mob.motion.slow).toBeNull();
   });
 });

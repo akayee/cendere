@@ -237,6 +237,11 @@ function startMatch(images, sfx, classId) {
     }
   });
   world.bus.on('poison.tick', (e) => effects.spawnText(e.x + 6, e.y, String(e.amount), '#7ee84a'));
+  // Kement isabeti: sabitlenen herkesin üstünde uçan yazı; kendimizsek sarsıntı da
+  world.bus.on('root.applied', (e) => {
+    effects.spawnText(e.x, e.y - 12, 'SABİTLENDİ!', '#e0b36a');
+    if (e.id === player.id) addShake(camera, 2);
+  });
   world.bus.on('poison.cured', (e) => {
     if (e.id === player.id) effects.spawnText(player.transform.x, player.transform.y - 12, 'ARINDIN', '#8cf58c');
   });

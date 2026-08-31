@@ -4,9 +4,9 @@
 import { circleVsCircle, circleVsAabb } from '../../core/collision.js';
 import { distSq } from '../../core/vec2.js';
 import { SIM } from '../../data/balance.js';
-import { applyDamage, canAttack } from './combatSystem.js';
+import { applyDamage, applyRoot, canAttack } from './combatSystem.js';
 
-const PROJ_RADIUS = 1.5;
+const PROJ_RADIUS = 1.5; // varsayılan; mermi kendi radius'unu taşıyabilir (kement: geniş)
 const AREA_TICK = 0.25; // alan hasarı uygulama aralığı
 
 const query = [];
@@ -33,7 +33,7 @@ export function projectileSystem(world) {
       p.y += p.vy * SIM.DT;
       if (d < target.body.radius + PROJ_RADIUS + 1) {
         const owner = world.entities.get(p.ownerId);
-        if (owner) applyDamage(world, target, p.damage, owner);
+        if (owner) applyDamage(world, target, p.damage, owner, { skillHit: p.fromSkill });
         world.bus.emit('projectile.hit', { x: p.x, y: p.y, kind: p.kind });
         world.projectiles.splice(i, 1);
       }
@@ -45,6 +45,8 @@ export function projectileSystem(world) {
 
     let hit = p.ttl <= 0;
 
+    const pr = p.radius ?? PROJ_RADIUS;
+
     // Katı engel kontrolü
     if (!hit) {
       world.staticHash.queryRect(p.x - 4, p.y - 4, p.x + 4, p.y + 4, query);
@@ -52,8 +54,8 @@ export function projectileSystem(world) {
         if (body.type === 'resource') continue; // küçük kaynaklar oku durdurmaz
         const c =
           body.shape === 'circle'
-            ? circleVsCircle(p.x, p.y, PROJ_RADIUS, body.x, body.y, body.r)
-            : circleVsAabb(p.x, p.y, PROJ_RADIUS, body.minX, body.minY, body.maxX, body.maxY);
+            ? circleVsCircle(p.x, p.y, pr, body.x, body.y, body.r)
+            : circleVsAabb(p.x, p.y, pr, body.minX, body.minY, body.maxX, body.maxY);
         if (c) {
           hit = true;
           break;
@@ -67,9 +69,13 @@ export function projectileSystem(world) {
       for (const other of world.movers) {
         if (other.dead || !other.combat || other.combat.team === p.team) continue;
         if (owner && !canAttack(world, owner, other)) continue;
-        const rr = other.body.radius + PROJ_RADIUS;
+        const rr = other.body.radius + pr;
         if (distSq(p.x, p.y, other.transform.x, other.transform.y) < rr * rr) {
-          if (owner) applyDamage(world, other, p.damage, owner);
+          if (owner) {
+            // Kement: SABİTLEME hasardan bağımsız uygulanır (hasar 0 olsa bile iner)
+            if (p.snare) applyRoot(world, other, p.snare);
+            if (p.damage > 0) applyDamage(world, other, p.damage, owner, { skillHit: p.fromSkill });
+          }
           hit = true;
           break;
         }
@@ -95,7 +101,7 @@ export function projectileSystem(world) {
         if (owner && !canAttack(world, owner, other)) continue;
         if (distSq(a.x, a.y, other.transform.x, other.transform.y) < a.r * a.r) {
           const src = owner ?? { transform: { x: a.x, y: a.y }, combat: { team: a.team } };
-          applyDamage(world, other, a.dps * AREA_TICK, src);
+          applyDamage(world, other, a.dps * AREA_TICK, src, { skillHit: a.fromSkill });
         }
       }
     }

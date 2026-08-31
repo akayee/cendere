@@ -11,7 +11,7 @@ function spawnBots(world, count) {
   const cy = world.map.heightPx / 2;
   for (let i = 0; i < count; i++) {
     const a = (i / Math.max(count, 3)) * Math.PI * 2 + 0.3;
-    createPlayer(world, ['cengaver', 'nisanci', 'ocakci'][i % 3], cx + Math.cos(a) * SPAWN.RING_RADIUS, cy + Math.sin(a) * SPAWN.RING_RADIUS, {
+    createPlayer(world, ['cengaver', 'nisanci', 'ocakci', 'kementci'][i % 4], cx + Math.cos(a) * SPAWN.RING_RADIUS, cy + Math.sin(a) * SPAWN.RING_RADIUS, {
       bot: true,
       personality: { aggro: 0.6, greed: 0.7 },
       name: 'TestBot' + i,

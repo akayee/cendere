@@ -41,6 +41,17 @@ export const COMBAT = {
   // Avcı İçgüdüsü (killMaxHp) toplam kazanım tavanı: 60 maçlık simde uçlar +500'ü
   // aşabiliyordu (mob grinding + kart istifi). ≈20 kill'lik birikim makul üst sınır.
   KILL_MAXHP_CAP: 60,
+  // Çifte Vuruş (autoStrikeAdd): her ekstra vuruş bu kadar sn sonra aynı hedeflere iner
+  // ("çat-çat" hissi; tick tabanlı sayılır — determinizmi bozmaz)
+  STRIKE_ECHO_DELAY: 0.1,
+};
+
+// Pranga Becerisi (skillSlow kartı): BECERİ kaynaklı her hasar (dash, şaşmaz ok,
+// alan yakması — ileride eklenecek sınıflar dahil) hedefe bu yavaşlatmayı basar.
+// Tüm şampiyonlar için AYNI oran/süre; yığılmaz, yeni isabet süreyi tazeler.
+export const SKILL_SLOW = {
+  speedMul: 0.6, // hedefin hızı bu çarpanla düşer (%40 yavaşlama)
+  duration: 1.5, // sn
 };
 
 // Zehir (PLAN §9 — Ultima usulü): hasarı küçük, asıl silahı İYİLEŞME KİLİDİ.

@@ -8,17 +8,34 @@
 //   regenAdd (hp/sn), killMaxHpAdd (kill başına KALICI azami can; kazanım anında mevcut
 //     cana da eklenir; toplam kazanım balance.js COMBAT.KILL_MAXHP_CAP'te durur),
 //   autoArcFull (cengaver: tam daire), autoProjAdd (+N mermi yelpazesi),
-//   poisonOnHit (saldırılar zehirler), skillChargesSet (beceri şarj sayısı)
+//   autoStrikeAdd (cengaver: her savuruş +N yankı vuruşu — aynı hedeflere kısa
+//     gecikmeyle yeniden hasar; combatSystem çözer),
+//   poisonOnHit (saldırılar zehirler), skillChargesSet (beceri şarj sayısı),
+//   skillSlow (beceri isabetleri yavaşlatır — oran/süre balance.js SKILL_SLOW)
 // classId: verilirse kart YALNIZCA o sınıfın teklif havuzuna girer
 // unique: true → ikinci kopya HİÇBİR ŞEY vermez (boolean/set etkiler); teklif
 //   havuzu ve Yankı Kartı, build'de zaten olan unique kartı ATLAR.
-//   catal_ok/cifte_kor unique DEĞİLDİR: +1 mermi istiflenir.
+//   catal_ok/cifte_kor/cifte_zipkin/cifte_vurus unique DEĞİLDİR: +1 mermi/vuruş istiflenir.
 
 export const RARITY = {
-  common: { key: 'common', name: 'Sıradan', color: '#c9d1d9', weight: 62 },
-  rare: { key: 'rare', name: 'Nadir', color: '#c07ef5', weight: 30 },
-  epic: { key: 'epic', name: 'Destansı', color: '#ffb545', weight: 8 },
+  common: { key: 'common', name: 'Sıradan', color: '#c9d1d9' },
+  rare: { key: 'rare', name: 'Nadir', color: '#c07ef5' },
+  epic: { key: 'epic', name: 'Destansı', color: '#ffb545' },
 };
+
+// Nadirlik ağırlıkları LEVELE bağlıdır (PLAN §6: seviye yükseldikçe nadir şansı
+// artar). Düşük levelde Destansı HİÇ çıkmaz; level 4'te açılır ve levelle büyür.
+// Kart teklifi üreten HER rastgele kaynak (rollOffer) bu fonksiyondan geçer —
+// sabit T3 elit ganimeti (Destansı garantili) ve Yankı Kartı (kurbanın build
+// kopyası) nadirlik ÇEKMEDİĞİ için kapsam dışıdır.
+export const EPIC_MIN_LEVEL = 4; // bu levelden önce Destansı ağırlığı 0
+
+/** Verilen oyuncu leveli için {common, rare, epic} ağırlıkları (toplam 100). */
+export function rarityWeightsForLevel(level) {
+  const epic = level < EPIC_MIN_LEVEL ? 0 : Math.min(22, 4 + (level - EPIC_MIN_LEVEL) * 2);
+  const rare = Math.min(44, 30 + level);
+  return { common: 100 - rare - epic, rare, epic };
+}
 
 // icon: pack içi yol. İsteğe bağlı crop: {src, x, y, w, h} (sprite sheet'ten kare)
 // veya {emoji} (pack'te uygun sprite yoksa — cardScreen/cardCatalog emoji dalı çizer).
@@ -46,8 +63,10 @@ export const CARDS = [
 
   // --- Nadir: SINIF KARTLARI (yalnız o sınıfın havuzuna düşer — PLAN §6)
   { id: 'girdap', name: 'Girdap', desc: 'Savuruş TAM DAİRE olur — arkanı da keser', rarity: 'rare', classId: 'cengaver', unique: true, effect: { autoArcFull: true }, icon: 'pack/Items/Weapons/Sword2/Sprite.png' },
-  { id: 'catal_ok', name: 'Çatal Ok', desc: 'Her atışta +1 ok (yelpaze)', rarity: 'rare', classId: 'nisanci', effect: { autoProjAdd: 1 }, icon: 'pack/Items/Weapons/Bow2/Sprite.png' },
-  { id: 'cifte_kor', name: 'Çifte Kor', desc: 'Her atışta +1 büyü topu (yelpaze)', rarity: 'rare', classId: 'ocakci', effect: { autoProjAdd: 1 }, icon: 'pack/Items/Weapons/MagicWand/Sprite.png' },
+  // Çifte Atış ikizleri (id'ler tarihsel — DEĞİŞMEZ): +1 mermi, İSTİFLENİR
+  { id: 'catal_ok', name: 'Çifte Atış', desc: 'Her atışta +1 ok — iki ok birden yelpaze halinde', rarity: 'rare', classId: 'nisanci', effect: { autoProjAdd: 1 }, icon: 'pack/Items/Weapons/Bow2/Sprite.png' },
+  { id: 'cifte_kor', name: 'Çifte Atış', desc: 'Her atışta +1 büyü topu — iki top birden yelpaze halinde', rarity: 'rare', classId: 'ocakci', effect: { autoProjAdd: 1 }, icon: 'pack/Items/Weapons/MagicWand/Sprite.png' },
+  { id: 'cifte_zipkin', name: 'Çifte Atış', desc: 'Her atışta +1 zıpkın — iki zıpkın birden yelpaze halinde', rarity: 'rare', classId: 'kementci', effect: { autoProjAdd: 1 }, icon: 'pack/Items/Weapons/Lance2/Sprite.png' },
   { id: 'zehirli_kenar', name: 'Zehirli Kenar', desc: 'Saldırıların zehirler: 3 sn iyileşme kilidi', rarity: 'rare', unique: true, effect: { poisonOnHit: true }, icon: 'pack/Items/Scroll/ScrollPlant.png' },
   // Tüm ARMOR kartları AYNI kalkan karesini (mavi sheet'in tam kubbesi) kullanır;
   // güç sırası ikondan değil nadirlik çerçevesinden okunur.
@@ -59,4 +78,9 @@ export const CARDS = [
   { id: 'vampir_dis', name: 'Vampir Dişi', desc: 'Verilen hasarın %22\'si can olur', rarity: 'epic', effect: { lifestealAdd: 0.22 }, icon: 'pack/Actor/Monsters/Skull/Faceset.png' },
   { id: 'yanki_becerisi', name: 'Yankı Becerisi', desc: 'Becerin 2 ŞARJ kazanır — art arda kullan', rarity: 'epic', unique: true, effect: { skillChargesSet: 2 }, icon: 'pack/Items/Scroll/ScrollThunder.png' },
   { id: 'cendere_zirhi', name: 'Cendere Zırhı', desc: '+7 ARMOR (her vuruşta daha az hasar)', rarity: 'epic', effect: { armorAdd: 7 }, icon: { src: 'pack/FX/Magic/Shield/SpriteSheetBlue.png', x: 120, y: 0, w: 24, h: 26 } },
+  // Uzakçıların istiflenen Çifte Atış'ının yakın dövüş dengi — nadir değil DESTANSI
+  // (tek yay savuruşu zaten çoklu hedef vurur; istifi bu yüzden pahalıdır). İSTİFLENİR.
+  { id: 'cifte_vurus', name: 'Çifte Vuruş', desc: 'Her savuruş aynı hedeflere +1 kez daha vurur (yankı vuruşu)', rarity: 'epic', classId: 'cengaver', effect: { autoStrikeAdd: 1 }, icon: 'pack/Items/Weapons/Sword2/Sprite.png' },
+  // Yavaşlatma oranı/süresi tüm sınıflar için AYNI sabitten okunur: balance.js SKILL_SLOW
+  { id: 'pranga_becerisi', name: 'Pranga Becerisi', desc: 'Becerinin vurduğu düşmanlar 1.5 sn %40 yavaşlar', rarity: 'epic', unique: true, effect: { skillSlow: true }, icon: { emoji: '⛓️' } },
 ];

@@ -197,7 +197,7 @@ function checkMilestone(world, ent, resType) {
 }
 
 /** Ganimet Kesesi: Yankı Kartı — açanın SINIFINA uygun kart, yoksa +20 XP (PLAN §9).
- *  unique kartın (girdap, zehirli_kenar, yanki_becerisi) ikinci kopyası boşa gider —
+ *  unique kartın (girdap, zehirli_kenar, yanki_becerisi, pranga_becerisi) ikinci kopyası boşa gider —
  *  açanın build'inde zaten olan unique kart seçilmez; uygun kart kalmazsa +20 XP. */
 function openBag(world, ent, res) {
   let cardId = res.loot.cardId ?? null; // elit kesede sabit Destansı
