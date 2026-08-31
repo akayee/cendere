@@ -13,6 +13,9 @@
 //   poisonOnHit (saldırılar zehirler), skillChargesSet (beceri şarj sayısı),
 //   skillSlow (beceri isabetleri yavaşlatır — oran/süre balance.js SKILL_SLOW)
 // classId: verilirse kart YALNIZCA o sınıfın teklif havuzuna girer
+// classExclude: [sınıf id...] — kart bu sınıfların havuzuna/kesesine HİÇ girmez
+//   (kart o sınıf için işlevsizse: pranga_becerisi × kementci — Kement zaten sabitler).
+//   Süzgecin tek kapısı cardAllowedFor: teklif (rollOffer) ve kese (openBag) oradan geçer.
 // unique: true → ikinci kopya HİÇBİR ŞEY vermez (boolean/set etkiler); teklif
 //   havuzu ve Yankı Kartı, build'de zaten olan unique kartı ATLAR.
 //   catal_ok/cifte_kor/cifte_zipkin/cifte_vurus unique DEĞİLDİR: +1 mermi/vuruş istiflenir.
@@ -81,6 +84,17 @@ export const CARDS = [
   // Uzakçıların istiflenen Çifte Atış'ının yakın dövüş dengi — nadir değil DESTANSI
   // (tek yay savuruşu zaten çoklu hedef vurur; istifi bu yüzden pahalıdır). İSTİFLENİR.
   { id: 'cifte_vurus', name: 'Çifte Vuruş', desc: 'Her savuruş aynı hedeflere +1 kez daha vurur (yankı vuruşu)', rarity: 'epic', classId: 'cengaver', effect: { autoStrikeAdd: 1 }, icon: 'pack/Items/Weapons/Sword2/Sprite.png' },
-  // Yavaşlatma oranı/süresi tüm sınıflar için AYNI sabitten okunur: balance.js SKILL_SLOW
-  { id: 'pranga_becerisi', name: 'Pranga Becerisi', desc: 'Becerinin vurduğu düşmanlar 1.5 sn %40 yavaşlar', rarity: 'epic', unique: true, effect: { skillSlow: true }, icon: { emoji: '⛓️' } },
+  // Yavaşlatma oranı/süresi tüm sınıflar için AYNI sabitten okunur: balance.js SKILL_SLOW.
+  // Kementçi HARİÇ: Kement zaten YERE SABİTLER — slow üstüne binmez (combatSystem'de
+  // snare isabeti skillHit saymaz), kart onun için işlevsiz kalırdı → havuzuna düşmez.
+  { id: 'pranga_becerisi', name: 'Pranga Becerisi', desc: 'Becerinin vurduğu düşmanlar 1.5 sn %40 yavaşlar', rarity: 'epic', unique: true, classExclude: ['kementci'], effect: { skillSlow: true }, icon: { emoji: '⛓️' } },
 ];
+
+/** Kart bu sınıfa verilebilir mi? classId (yalnız o sınıf) + classExclude (o sınıflara
+ *  asla) süzgeci — teklif havuzu (rollOffer) ve Yankı Kartı/elit kesesi (openBag)
+ *  AYNI kapıdan geçer; botlar da rollOffer'dan beslendiği için otomatik kapsanır. */
+export function cardAllowedFor(card, classId) {
+  if (card.classId && card.classId !== classId) return false;
+  if (card.classExclude && card.classExclude.includes(classId)) return false;
+  return true;
+}

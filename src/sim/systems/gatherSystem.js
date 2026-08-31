@@ -5,7 +5,7 @@
 
 import { distSq } from '../../core/vec2.js';
 import { ECON, SIM, COMBAT } from '../../data/balance.js';
-import { CARDS } from '../../data/cards.js';
+import { CARDS, cardAllowedFor } from '../../data/cards.js';
 import { createResource } from '../entity.js';
 import { applyCard } from './progressionSystem.js';
 import { canHeal } from './combatSystem.js';
@@ -203,11 +203,13 @@ function openBag(world, ent, res) {
   let cardId = res.loot.cardId ?? null; // elit kesede sabit Destansı
   if (cardId) {
     const c = CARDS.find((k) => k.id === cardId);
-    if (c?.unique && ent.progress.build.includes(cardId)) cardId = null; // ikinci kopya boşa gitmesin
+    // İkinci unique kopya VEYA sınıfına yasak kart (classExclude) boşa gitmesin → +20 XP
+    if (c?.unique && ent.progress.build.includes(cardId)) cardId = null;
+    else if (c && !cardAllowedFor(c, ent.classId)) cardId = null;
   } else if (res.loot.build?.length) {
     const uygun = res.loot.build.filter((id) => {
       const c = CARDS.find((k) => k.id === id);
-      return c && (!c.classId || c.classId === ent.classId) && !(c.unique && ent.progress.build.includes(id));
+      return c && cardAllowedFor(c, ent.classId) && !(c.unique && ent.progress.build.includes(id));
     });
     if (uygun.length) cardId = uygun[Math.floor(world.rng() * uygun.length)];
   }

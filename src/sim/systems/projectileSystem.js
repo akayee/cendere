@@ -83,7 +83,8 @@ export function projectileSystem(world) {
     }
 
     if (hit) {
-      world.bus.emit('projectile.hit', { x: p.x, y: p.y, kind: p.kind });
+      // a: geliş açısı — render isabet efektini (zıpkın kıymıkları) yönlendirmek için okur
+      world.bus.emit('projectile.hit', { x: p.x, y: p.y, kind: p.kind, a: Math.atan2(p.vy, p.vx) });
       world.projectiles.splice(i, 1);
     }
   }

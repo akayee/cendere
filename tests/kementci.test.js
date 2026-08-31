@@ -4,6 +4,7 @@ import { createPlayer, createMob } from '../src/sim/entity.js';
 import { step } from '../src/sim/pipeline.js';
 import { applyRoot } from '../src/sim/systems/combatSystem.js';
 import { applyCard } from '../src/sim/systems/progressionSystem.js';
+import { CARDS, cardAllowedFor } from '../src/data/cards.js';
 import { CLASSES } from '../src/data/classes.js';
 import { SIM } from '../src/data/balance.js';
 
@@ -130,6 +131,65 @@ describe('Kementçi — 4. sınıf (snareShot)', () => {
     player.combat.skillCd = 99;
     step(world);
     expect(world.projectiles.length).toBe(2); // yelpaze: iki zıpkın birden
+  });
+
+  it('Kement isabeti Pranga yavaşlatmasını TETİKLEMEZ (root uygulanır, slow uygulanmaz)', () => {
+    const { world, player, cx, cy } = setup();
+    const mob = createMob(world, 'slime', cx + 70, cy);
+    mob.ai.state = 'chase';
+    mob.ai.targetId = player.id;
+    player.combat.mods.skillSlow = true; // Pranga alınmış GİBİ (havuza düşmez ama akış yine de dayanıklı olmalı)
+    player.combat.autoCd = 99; // yalnız kement uçsun (zıpkın da skillHit saymaz zaten)
+    player.input.wantSkill = true;
+    for (let i = 0; i < 60 && !mob.motion.root; i++) {
+      player.combat.autoCd = 99;
+      step(world);
+    }
+    expect(mob.motion.root).not.toBeNull(); // sabitleme indi...
+    expect(mob.motion.slow).toBeNull(); // ...ama yavaşlatma YOK: kement skillHit değildir
+  });
+
+  it('Kement mermi hızı GÜNCEL hareket hızıyla ölçeklenir (SPEED kartı → hızlı kement)', () => {
+    const { world, player, cx, cy } = setup();
+    createMob(world, 'slime', cx + 70, cy);
+    player.combat.autoCd = 99;
+    player.input.wantSkill = true;
+    step(world);
+    const k1 = world.projectiles.find((p) => p.kind === 'kement');
+    expect(k1).toBeDefined();
+    // Taban hızda çarpan 1: mermi hızı = taban projSpeed (300)
+    expect(Math.hypot(k1.vx, k1.vy)).toBeCloseTo(CLASSES.kementci.skill.projSpeed, 5);
+
+    applyCard(player, 'ruzgar_yurusu'); // +%15 SPEED → kement de %15 hızlanmalı
+    player.combat.skillCd = 0; // ikinci atış için bekleme elle sıfırlanır (test kolaylığı)
+    player.combat.autoCd = 99;
+    player.input.wantSkill = true;
+    step(world);
+    const k2 = world.projectiles.filter((p) => p.kind === 'kement').pop();
+    expect(k2).not.toBe(k1);
+    expect(Math.hypot(k2.vx, k2.vy)).toBeCloseTo(CLASSES.kementci.skill.projSpeed * 1.15, 5);
+  });
+
+  it('pranga_becerisi Kementçi tekliflerine ÇIKMAZ (classExclude); diğer sınıflara serbest', () => {
+    const pranga = CARDS.find((c) => c.id === 'pranga_becerisi');
+    expect(pranga.classExclude).toContain('kementci');
+    expect(cardAllowedFor(pranga, 'kementci')).toBe(false);
+    expect(cardAllowedFor(pranga, 'cengaver')).toBe(true);
+    expect(cardAllowedFor(pranga, 'nisanci')).toBe(true);
+    expect(cardAllowedFor(pranga, 'ocakci')).toBe(true);
+
+    // Bütünleşik: yüksek levelde (Destansı ağırlığı tavanda) 50 teklif çekilir —
+    // pranga hiçbirinde görünmemeli. Botlar da aynı rollOffer'dan beslenir.
+    const { world, player } = setup();
+    player.progress.level = 12;
+    for (let i = 0; i < 50; i++) {
+      player.progress.pendingCards = 1;
+      player.progress.offer = null;
+      player.input.wantCards = true;
+      step(world);
+      expect(player.progress.offer).toBeDefined();
+      expect(player.progress.offer).not.toContain('pranga_becerisi');
+    }
   });
 
   it('kementçi BOT menzildeki rakibe kement atar ve sabitler (bot oynayabilir)', () => {

@@ -91,8 +91,11 @@ export const CLASSES = {
     auto: { type: 'projectile', damage: 10, range: 95, cooldown: 0.78, swingTime: 0.17, projSpeed: 210 },
     // Kement: düz skillshot — isabet hedefi rootDuration sn YERE SABİTLER (hareket yok;
     // saldırı/beceri serbest — uygulaması combat/movementSystem'de motion.root).
-    // Hasar sembolik: gücü kontroldedir. Normal autolardan hızlı (300) + geniş çarpışma
-    // yarıçapı (2.5) → tutturması kolay; ama düz uçar ve engele takılır → ıskalanabilir.
+    // Hasar sembolik: gücü kontroldedir. Normal autolardan hızlı (taban 300) + geniş
+    // çarpışma yarıçapı (2.5) → tutturması kolay; ama düz uçar ve engele takılır →
+    // ıskalanabilir. Mermi hızı Kementçi'nin GÜNCEL hareket hızıyla ölçeklenir:
+    // taban × (motion.speed / baseSpeed) — SPEED uzmanlığıyla sinerji (combatSystem).
+    // Pranga (skillSlow) Kement'e İŞLEMEZ: root varken slow anlamsız (cards.js classExclude).
     // rangeMul: hedef arama menzili = auto.range × bu (≈128) — Şaşmaz Ok deseni:
     // menzilde hedef yoksa harcanmaz.
     skill: { type: 'snareShot', cooldown: 7, damage: 4, projSpeed: 300, projRadius: 2.5, rootDuration: 1.3, rangeMul: 1.35 },
@@ -100,7 +103,7 @@ export const CLASSES = {
       autoName: 'Zıpkın',
       autoDesc: 'Uzaktan vurur; engellerin arkasına işlemez',
       skillName: 'Kement',
-      skillDesc: 'Düz fırlatılır; isabet 1.3 sn YERE SABİTLER (rakip saldırabilir) · 7 sn',
+      skillDesc: 'Düz fırlatılır; isabet 1.3 sn YERE SABİTLER (rakip saldırabilir) · hızınla hızlanır · 7 sn',
       skillIcon: 'pack/Items/Weapons/Whip/Sprite.png',
       perk: 'SPEED toplaması ×2 etki',
     },

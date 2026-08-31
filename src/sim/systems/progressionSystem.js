@@ -3,7 +3,7 @@
 // kendiliğinden açılmaz: oyuncu wantCards intent'iyle ister, teklif kalıcıdır.
 
 import { xpForLevel, XP } from '../../data/balance.js';
-import { CARDS, rarityWeightsForLevel } from '../../data/cards.js';
+import { CARDS, cardAllowedFor, rarityWeightsForLevel } from '../../data/cards.js';
 
 export function progressionSystem(world) {
   for (const ent of world.movers) {
@@ -62,7 +62,7 @@ function rollOffer(world, ent) {
   const pool = CARDS.filter(
     (c) =>
       weights[c.rarity] > 0 && // 0 ağırlıklı nadirlik (düşük levelde Destansı) havuza HİÇ girmez
-      (!c.classId || c.classId === ent.classId) &&
+      cardAllowedFor(c, ent.classId) && // classId + classExclude süzgeci (cards.js)
       !(c.unique && ent.progress.build.includes(c.id))
   );
   const totalW = (c) => weights[c.rarity];

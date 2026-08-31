@@ -240,18 +240,24 @@ function tryStartSkill(world, ent) {
     // Hedefe dön (4 yönlü sprite: baskın eksen) — auto ile aynı dil
     if (Math.abs(tx) >= Math.abs(ty)) ent.transform.dir = tx < 0 ? 'left' : 'right';
     else ent.transform.dir = ty < 0 ? 'up' : 'down';
+    // Mermi hızı Kementçi'nin O ANKİ hızıyla ölçeklenir: taban × (güncelHız / tabanHız).
+    // motion.speed KALICI çarpanları taşır (SPEED kartları + pickup/eşik ödülleri —
+    // gatherSystem/applyCard yazar, ECON.SPEED_TOTAL_CAP tavanlı); geçici slow/root
+    // ayrı alanlarda aktığı için doğal olarak DAHİL DEĞİL. Deterministik: hepsi sim state'i.
+    const projSpeed = s.projSpeed * (ent.motion.speed / ent.motion.baseSpeed);
     world.projectiles.push({
       x: ent.transform.x,
       y: ent.transform.y - 6,
-      vx: (tx / td) * s.projSpeed,
-      vy: (ty / td) * s.projSpeed,
+      vx: (tx / td) * projSpeed,
+      vy: (ty / td) * projSpeed,
       damage: s.damage, // sembolik — gücü kontroldedir
       team: c.team,
       ownerId: ent.id,
       radius: s.projRadius, // geniş çarpışma: tutturması kolay
       snare: s.rootDuration, // isabet: hedef yere sabitlenir (projectileSystem uygular)
-      fromSkill: true, // beceri kaynaklı hasar: Pranga yavaşlatması buradan tetiklenir
-      ttl: (range + 14) / s.projSpeed,
+      // fromSkill BİLEREK YOK: Kement zaten SABİTLER — Pranga yavaşlatması (skillSlow)
+      // üstüne binmez; kart da Kementçi havuzuna düşmez (cards.js classExclude).
+      ttl: (range + 14) / projSpeed,
       kind: 'kement',
     });
     c.swingT = c.auto.swingTime;
@@ -341,10 +347,13 @@ function tryAutoAttack(world, ent) {
   const facing = Math.atan2(fy, fx);
 
   if (c.auto.type === 'projectile') {
-    // Menzilli: hedefe doğru mermi(ler) — Çatal Ok/Çifte Kor yelpaze halinde atar
+    // Menzilli: hedefe doğru mermi(ler) — Çatal Ok/Çifte Kor yelpaze halinde atar.
+    // kind sınıfın mermi görsel etiketidir (yorumunu render bilir): Ocakçı büyü topu,
+    // Kementçi zıpkını (kendine özgü mermi + isabet efekti), diğerleri ok.
+    const kind = ent.classId === 'ocakci' ? 'bolt' : ent.classId === 'kementci' ? 'zipkin' : 'arrow';
     const count = c.auto.projCount ?? 1;
     const spread = 0.16; // yelpaze açıklığı (radyan)
-    world.bus.emit('auto.fired', { id: ent.id, kind: ent.classId === 'ocakci' ? 'bolt' : 'arrow' });
+    world.bus.emit('auto.fired', { id: ent.id, kind });
     for (let i = 0; i < count; i++) {
       const off = count > 1 ? (i - (count - 1) / 2) * spread : 0;
       const a = facing + off;
@@ -357,7 +366,7 @@ function tryAutoAttack(world, ent) {
         team: c.team,
         ownerId: ent.id,
         ttl: (range + 14) / c.auto.projSpeed,
-        kind: ent.classId === 'ocakci' ? 'bolt' : 'arrow',
+        kind,
       });
     }
   } else {
@@ -421,7 +430,8 @@ function applySkillSlow(world, target) {
 
 /** opts.skillHit: hasar BECERİ kaynaklı (dash / şaşmaz ok / alan yakması — ileride
  *  eklenecek sınıf becerileri de bu bayrakla geçmeli). Beceri → yavaşlatma (Pranga)
- *  TEK noktadan, buradan uygulanır. */
+ *  TEK noktadan, buradan uygulanır. İSTİSNA: Kement (snareShot) bayrağı BİLEREK
+ *  taşımaz — root zaten sabitler, slow üstüne binmez (kart havuzu: classExclude). */
 export function applyDamage(world, target, amount, source, opts) {
   // Kırık kukla vurulamaz: hasar da XP de yok (onarımı bekle)
   if (target.kind === 'dummy' && target.health.brokenT > 0) return;

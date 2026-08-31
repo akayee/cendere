@@ -110,6 +110,33 @@ export function createRenderer(canvas, images, map, effects) {
         ctx.beginPath();
         ctx.ellipse(p.x, p.y, 3.2, 3.2 * squish, a, 0, Math.PI * 2);
         ctx.stroke();
+      } else if (p.kind === 'zipkin') {
+        // Zıpkın (Kementçi auto): uzun çelik gövde + dolgun üçgen başlık + geriye
+        // dönük çapa dişleri — okun ince çizgisinden ve büyü topundan net ayrışır
+        const a = Math.atan2(p.vy, p.vx);
+        const ca = Math.cos(a);
+        const sa = Math.sin(a);
+        ctx.strokeStyle = '#6b7b8c'; // koyu çelik sap
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(p.x - ca * 11, p.y - sa * 11);
+        ctx.lineTo(p.x - ca * 2, p.y - sa * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#cfe3f2'; // parlak uç
+        ctx.beginPath();
+        ctx.moveTo(p.x + ca * 4.5, p.y + sa * 4.5); // sivri burun
+        ctx.lineTo(p.x - ca * 2 - sa * 2.2, p.y - sa * 2 + ca * 2.2);
+        ctx.lineTo(p.x - ca * 2 + sa * 2.2, p.y - sa * 2 - ca * 2.2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#cfe3f2'; // çapa dişleri (zıpkın imzası)
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(p.x - ca * 1, p.y - sa * 1);
+        ctx.lineTo(p.x - ca * 4.5 - sa * 3, p.y - sa * 4.5 + ca * 3);
+        ctx.moveTo(p.x - ca * 1, p.y - sa * 1);
+        ctx.lineTo(p.x - ca * 4.5 + sa * 3, p.y - sa * 4.5 - ca * 3);
+        ctx.stroke();
       } else if (p.kind === 'bolt') {
         ctx.fillStyle = '#ffb545';
         ctx.beginPath();

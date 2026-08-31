@@ -228,6 +228,7 @@ function startMatch(images, sfx, classId) {
   });
   world.bus.on('projectile.hit', (e) => {
     if (e.kind === 'bolt') effects.spawnPoof(e.x, e.y);
+    else if (e.kind === 'zipkin') effects.spawnZipkinHit(e.x, e.y, e.a ?? 0); // Kementçi imzası
   });
   world.bus.on('poison.applied', (e) => {
     effects.spawnText(e.x, e.y - 12, 'ZEHİR!', '#7ee84a');

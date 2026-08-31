@@ -21,6 +21,12 @@ export function createEffects() {
       items.push({ type: 'poof', x, y, t: 0, life: 0.35 });
     },
 
+    /** Zıpkın saplanması (Kementçi auto isabeti): geliş yönünün tersine saçılan
+     *  çelik kıymıklar + kısa halka — poof/slash/bolt'tan net ayrışan sınıf imzası */
+    spawnZipkinHit(x, y, angle) {
+      items.push({ type: 'zipkinHit', x, y, angle, t: 0, life: 0.28 });
+    },
+
     /** Seviye atlama: HERKESE görünür ışık sütunu + halka (PLAN §6) */
     spawnLevelBeam(x, y) {
       items.push({ type: 'beam', x, y, t: 0, life: 0.9 });
@@ -94,6 +100,27 @@ export function createEffects() {
             ctx.arc(fx.x + Math.cos(a) * sr, fx.y - 6 - p * 10 + Math.sin(a) * sr * 0.5, 1.6 * (1 - p), 0, Math.PI * 2);
             ctx.fill();
           }
+        } else if (fx.type === 'zipkinHit') {
+          // Zıpkın saplanması: geriye (geliş yönünün tersine) saçılan çelik mavisi
+          // kıymık yelpazesi + saplanma noktasında kısa parlak halka
+          ctx.globalAlpha = (1 - p) * 0.95;
+          ctx.strokeStyle = '#9fd8e8';
+          ctx.lineWidth = 1.4 * (1 - p * 0.5);
+          const back = fx.angle + Math.PI;
+          for (let i = -2; i <= 2; i++) {
+            const a = back + i * 0.45;
+            const r0 = 2 + p * 3;
+            const r1 = 6 + p * 6 - Math.abs(i) * 1.2; // ortadaki kıymık en uzun
+            ctx.beginPath();
+            ctx.moveTo(fx.x + Math.cos(a) * r0, fx.y + Math.sin(a) * r0);
+            ctx.lineTo(fx.x + Math.cos(a) * r1, fx.y + Math.sin(a) * r1);
+            ctx.stroke();
+          }
+          ctx.strokeStyle = '#e8f4fa';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(fx.x, fx.y, 2.5 + p * 5, 0, Math.PI * 2);
+          ctx.stroke();
         } else if (fx.type === 'poof') {
           ctx.globalAlpha = (1 - p) * 0.7;
           ctx.fillStyle = '#e8e8e0';

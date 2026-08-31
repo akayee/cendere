@@ -49,6 +49,8 @@ export const COMBAT = {
 // Pranga Becerisi (skillSlow kartı): BECERİ kaynaklı her hasar (dash, şaşmaz ok,
 // alan yakması — ileride eklenecek sınıflar dahil) hedefe bu yavaşlatmayı basar.
 // Tüm şampiyonlar için AYNI oran/süre; yığılmaz, yeni isabet süreyi tazeler.
+// İSTİSNA: Kement (snareShot) — root zaten sabitler, slow tetiklenmez; kart
+// Kementçi havuzuna da düşmez (cards.js classExclude).
 export const SKILL_SLOW = {
   speedMul: 0.6, // hedefin hızı bu çarpanla düşer (%40 yavaşlama)
   duration: 1.5, // sn
