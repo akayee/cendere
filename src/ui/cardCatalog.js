@@ -5,6 +5,7 @@
 
 import { CARDS, RARITY } from '../data/cards.js';
 import { CLASSES } from '../data/classes.js';
+import { frameCssText } from './rarityFrame.js';
 
 const CSS = `
 .cat-wrap { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column;
@@ -26,8 +27,11 @@ const CSS = `
 .cat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 @media (min-width: 560px) { .cat-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 820px) { .cat-grid { grid-template-columns: repeat(4, 1fr); } }
-/* Zemin gradyanı inline basılır (nadirliğe göre, RARITY.bg) — burada yalnız ortak kabuk */
-.cat-card { border-radius: 8px; padding: 8px 8px 10px; text-align: center;
+/* Çerçeve degradesi + zemin gradyanı inline basılır (nadirliğe göre: rarityFrame
+   frameCssText + RARITY.bg) — burada yalnız ortak kabuk. Katalog yoğun (onlarca
+   kart) → animate:false: shimmer/glow animasyonu YOK, destansı sabit hafif glow. */
+.cat-card { border-radius: 8px; padding: 2px; display: flex; flex-direction: column; }
+.cat-card-inner { flex: 1; border-radius: 6px; padding: 8px 8px 10px; text-align: center;
   border: 1px solid rgba(255,255,255,0.10); }
 .cat-icon { width: 34px; height: 34px; margin: 2px auto 4px; border-radius: 50%; display: flex;
   align-items: center; justify-content: center; overflow: hidden;
@@ -63,12 +67,13 @@ function cardHtml(card, color) {
   // Sınıf rozeti yalnız classId taşıyan kartlarda; ad sözlükten (bilinmeyen id → ham id)
   const clsName = card.classId ? (CLASSES[card.classId]?.name ?? card.classId) : null;
   return (
-    `<div class="cat-card" style="background:radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.06), transparent 55%), ${RARITY[card.rarity]?.bg ?? 'linear-gradient(170deg, #2b2749, #171430)'}">` +
+    `<div class="cat-card" style="${frameCssText(card.rarity, color, { animate: false })}">` +
+    `<div class="cat-card-inner" style="background:radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.06), transparent 55%), ${RARITY[card.rarity]?.bg ?? 'linear-gradient(170deg, #2b2749, #171430)'}">` +
     `<div class="cat-icon" style="box-shadow:inset 0 0 8px ${color}44">${iconHtml(card.icon)}</div>` +
     `<div class="cat-name" style="color:${color}">${card.name ?? card.id}</div>` +
     `<div class="cat-desc">${card.desc ?? ''}</div>` +
     (clsName ? `<div class="cat-class">${clsName}</div>` : '') +
-    `</div>`
+    `</div></div>`
   );
 }
 

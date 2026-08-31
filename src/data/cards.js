@@ -46,7 +46,8 @@ export function rarityWeightsForLevel(level) {
 // icon: pack içi yol. İsteğe bağlı crop: {src, x, y, w, h} (sprite sheet'ten kare)
 // veya {emoji} (pack'te uygun sprite yoksa — cardScreen/cardCatalog emoji dalı çizer).
 // Simge dili: aynı stat türü = AYNI simge; nadirlik farkı yalnız çerçeveden okunur.
-//   AD = kılıç · ARMOR = kalkan (tam kubbe karesi) · SPEED = çizme · saldırı hızı = kol
+//   AD = kılıç · ARMOR = 🛡️ (pack'te zırh item sprite'ı yok)
+//   · SPEED = çizme · saldırı hızı = kol · kritik = 🎯 (pack'te nişangâh sprite'ı yok)
 export const CARDS = [
   // --- Sıradan
   { id: 'kalin_post', name: 'Kalın Post', desc: '+20 azami can', rarity: 'common', effect: { maxHpAdd: 20 }, icon: 'pack/Items/Potion/LifePot.png' },
@@ -55,7 +56,7 @@ export const CARDS = [
   { id: 'hizli_bilek', name: 'Hızlı Bilek', desc: '+%10 saldırı hızı', rarity: 'common', effect: { autoCooldownMul: 0.9 }, icon: { emoji: '💪' } },
   { id: 'uzun_kol', name: 'Uzun Kol', desc: '+4 saldırı menzili', rarity: 'common', effect: { autoRangeAdd: 4 }, icon: 'pack/Items/Weapons/Lance/Sprite.png' },
   // +2: zırh pickup'ı zaten +1 verdiği için kart onun iki katı — nadirlik/etki oranı korunur
-  { id: 'deri_zirh', name: 'Deri Zırh', desc: '+2 ARMOR (her vuruşta daha az hasar)', rarity: 'common', effect: { armorAdd: 2 }, icon: { src: 'pack/FX/Magic/Shield/SpriteSheetBlue.png', x: 120, y: 0, w: 24, h: 26 } },
+  { id: 'deri_zirh', name: 'Deri Zırh', desc: '+2 ARMOR (her vuruşta daha az hasar)', rarity: 'common', effect: { armorAdd: 2 }, icon: { emoji: '🛡️' } },
   { id: 'sicak_kan', name: 'Sıcak Kan', desc: 'Saniyede 0.6 can yenileme', rarity: 'common', effect: { regenAdd: 0.6 }, icon: 'pack/Items/Potion/Medipack.png' },
 
   // --- Nadir
@@ -64,7 +65,8 @@ export const CARDS = [
   { id: 'kan_emici', name: 'Kan Emici', desc: 'Verilen hasarın %10\'u can olur', rarity: 'rare', effect: { lifestealAdd: 0.1 }, icon: 'pack/Items/Weapons/Bone/Sprite.png' },
   { id: 'olum_dansi', name: 'Ölüm Dansı', desc: 'Beceri %25 daha sık kullanılır', rarity: 'rare', effect: { skillCooldownMul: 0.75 }, icon: 'pack/Items/Weapons/Whip/Sprite.png' },
   { id: 'agir_darbe', name: 'Ağır Darbe', desc: 'Beceri gücü +%30 (atılma/ok/alev)', rarity: 'rare', effect: { skillPowerMul: 1.3 }, icon: 'pack/Items/Weapons/Hammer/Sprite.png' },
-  { id: 'keskin_goz', name: 'Keskin Göz', desc: '%12 kritik şansı (1.5× hasar)', rarity: 'rare', effect: { critAdd: 0.12 }, icon: 'pack/Items/Weapons/Bow/Sprite.png' },
+  // 🎯: yay sprite'ı Nişancı çağrıştırıyordu — kritik "hedefi tam vurmak"tır, emoji dalı çizer
+  { id: 'keskin_goz', name: 'Keskin Göz', desc: '%12 kritik şansı (1.5× hasar)', rarity: 'rare', effect: { critAdd: 0.12 }, icon: { emoji: '🎯' } },
   { id: 'avci_icgudusu', name: 'Avcı İçgüdüsü', desc: 'Her kill KALICI +3 azami can (toplam +60\'a kadar)', rarity: 'rare', effect: { killMaxHpAdd: 3 }, icon: 'pack/Items/Food/Beaf.png' },
 
   // --- Nadir: SINIF KARTLARI (yalnız o sınıfın havuzuna düşer — PLAN §6)
@@ -74,16 +76,17 @@ export const CARDS = [
   { id: 'cifte_kor', name: 'Çifte Atış', desc: 'Her atışta +1 büyü topu — iki top birden yelpaze halinde', rarity: 'rare', classId: 'ocakci', effect: { autoProjAdd: 1 }, icon: 'pack/Items/Weapons/MagicWand/Sprite.png' },
   { id: 'cifte_zipkin', name: 'Çifte Atış', desc: 'Her atışta +1 zıpkın — iki zıpkın birden yelpaze halinde', rarity: 'rare', classId: 'kementci', effect: { autoProjAdd: 1 }, icon: 'pack/Items/Weapons/Lance2/Sprite.png' },
   { id: 'zehirli_kenar', name: 'Zehirli Kenar', desc: 'Saldırıların zehirler: 3 sn iyileşme kilidi', rarity: 'rare', unique: true, effect: { poisonOnHit: true }, icon: 'pack/Items/Scroll/ScrollPlant.png' },
-  // Tüm ARMOR kartları AYNI kalkan karesini (mavi sheet'in tam kubbesi) kullanır;
-  // güç sırası ikondan değil nadirlik çerçevesinden okunur.
-  { id: 'demir_kabuk', name: 'Demir Kabuk', desc: '+4 ARMOR (her vuruşta daha az hasar)', rarity: 'rare', effect: { armorAdd: 4 }, icon: { src: 'pack/FX/Magic/Shield/SpriteSheetBlue.png', x: 120, y: 0, w: 24, h: 26 } },
+  // Tüm ARMOR kartları AYNI zırh simgesini (🛡️) kullanır — pack'te zırh item
+  // sprite'ı yok, kalkan FX kareleri de statik ikon olarak okunmuyor; güç sırası
+  // ikondan değil nadirlik çerçevesinden okunur.
+  { id: 'demir_kabuk', name: 'Demir Kabuk', desc: '+4 ARMOR (her vuruşta daha az hasar)', rarity: 'rare', effect: { armorAdd: 4 }, icon: { emoji: '🛡️' } },
 
   // --- Destansı
   { id: 'cendere_yuregi', name: 'Cendere Yüreği', desc: '+45 azami can', rarity: 'epic', effect: { maxHpAdd: 45 }, icon: 'pack/Items/Potion/Hear.png' },
   { id: 'firtina_bilegi', name: 'Fırtına Bileği', desc: '+%22 saldırı hızı', rarity: 'epic', effect: { autoCooldownMul: 0.78 }, icon: { emoji: '💪' } },
   { id: 'vampir_dis', name: 'Vampir Dişi', desc: 'Verilen hasarın %22\'si can olur', rarity: 'epic', effect: { lifestealAdd: 0.22 }, icon: 'pack/Actor/Monsters/Skull/Faceset.png' },
   { id: 'yanki_becerisi', name: 'Yankı Becerisi', desc: 'Becerin 2 ŞARJ kazanır — art arda kullan', rarity: 'epic', unique: true, effect: { skillChargesSet: 2 }, icon: 'pack/Items/Scroll/ScrollThunder.png' },
-  { id: 'cendere_zirhi', name: 'Cendere Zırhı', desc: '+7 ARMOR (her vuruşta daha az hasar)', rarity: 'epic', effect: { armorAdd: 7 }, icon: { src: 'pack/FX/Magic/Shield/SpriteSheetBlue.png', x: 120, y: 0, w: 24, h: 26 } },
+  { id: 'cendere_zirhi', name: 'Cendere Zırhı', desc: '+7 ARMOR (her vuruşta daha az hasar)', rarity: 'epic', effect: { armorAdd: 7 }, icon: { emoji: '🛡️' } },
   // Uzakçıların istiflenen Çifte Atış'ının yakın dövüş dengi — nadir değil DESTANSI
   // (tek yay savuruşu zaten çoklu hedef vurur; istifi bu yüzden pahalıdır). İSTİFLENİR.
   { id: 'cifte_vurus', name: 'Çifte Vuruş', desc: 'Her savuruş aynı hedeflere +1 kez daha vurur (yankı vuruşu)', rarity: 'epic', classId: 'cengaver', effect: { autoStrikeAdd: 1 }, icon: 'pack/Items/Weapons/Sword2/Sprite.png' },

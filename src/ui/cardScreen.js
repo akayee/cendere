@@ -7,11 +7,10 @@
 // eski tam ekran halinden küçültülerek korundu.
 
 import { CARDS, RARITY } from '../data/cards.js';
+import { ensureFrameCss, frameStyle, cornersHtml } from './rarityFrame.js';
 
 const CSS = `
 @keyframes card-in { from { transform: translateY(-10px) scale(0.92); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes epic-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
-@keyframes epic-glow { 0%,100% { box-shadow: 0 0 10px #ffb54588, 0 3px 12px #000c; } 50% { box-shadow: 0 0 18px #ffb545cc, 0 3px 12px #000c; } }
 .cnd-strip { position: fixed; top: calc(30px + env(safe-area-inset-top, 0px)); left: 50%;
   transform: translateX(-50%); display: none; align-items: flex-start; gap: clamp(8px, 1vw, 14px);
   z-index: 24; pointer-events: none; user-select: none; -webkit-user-select: none; }
@@ -35,7 +34,6 @@ const CSS = `
 .cnd-name { font: bold clamp(15px, 1.7vw, 22px) Georgia, serif; letter-spacing: 0.3px; margin-top: 4px; }
 .cnd-desc { font: clamp(12px, 1.4vw, 18px) sans-serif; opacity: 0.85; line-height: 1.35;
   margin-top: 4px; min-height: 2.8em; overflow-wrap: break-word; }
-.cnd-corner { position: absolute; width: 8px; height: 8px; transform: rotate(45deg); border-radius: 1px; }
 .cnd-later { pointer-events: auto; align-self: center; width: clamp(32px, 3vw, 42px); height: clamp(32px, 3vw, 42px);
   border-radius: 50%; display: flex; align-items: center; justify-content: center;
   background: rgba(24,22,48,0.85); border: 1px solid rgba(255,255,255,0.35); color: #cfd6e4;
@@ -44,6 +42,7 @@ const CSS = `
 `;
 
 export function createCardScreen(onPick) {
+  ensureFrameCss(); // nadirlik çerçevesi keyframe'leri (rarityFrame.js — üç kart UI'ı ortak)
   const style = document.createElement('style');
   style.textContent = CSS;
   document.head.appendChild(style);
@@ -54,26 +53,6 @@ export function createCardScreen(onPick) {
 
   function hide() {
     strip.style.display = 'none';
-  }
-
-  function frameStyle(rarKey, color) {
-    if (rarKey === 'epic') {
-      return {
-        background: `linear-gradient(120deg, ${color}, #fff3c4, ${color}, #b06a12, ${color})`,
-        backgroundSize: '300% 100%',
-        animation: 'card-in 0.22s ease-out backwards, epic-shimmer 2.2s linear infinite, epic-glow 1.6s ease-in-out infinite',
-      };
-    }
-    if (rarKey === 'rare') {
-      return {
-        background: `linear-gradient(165deg, #e6c8ff, ${color} 35%, #5b2e8a 80%)`,
-        boxShadow: `0 0 10px ${color}66, 0 3px 12px #000c`,
-      };
-    }
-    return {
-      background: `linear-gradient(165deg, #f2f5f7, ${color} 40%, #5c6670 85%)`,
-      boxShadow: '0 3px 10px #000c',
-    };
   }
 
   function iconHtml(icon) {
@@ -100,7 +79,11 @@ export function createCardScreen(onPick) {
       const rar = RARITY[card.rarity];
       const el = document.createElement('div');
       el.className = 'cnd-card';
-      Object.assign(el.style, frameStyle(rar.key, rar.color));
+      // Çerçeve stili ortak yardımcıdan; destansının shimmer/glow listesinin başına
+      // şeridin kendi giriş animasyonu eklenir (yardımcı giriş animasyonu bilmez)
+      const fs = frameStyle(rar.key, rar.color);
+      if (fs.animation) fs.animation = 'card-in 0.22s ease-out backwards, ' + fs.animation;
+      Object.assign(el.style, fs);
       el.style.animationDelay = idx * 0.06 + 's';
 
       el.innerHTML =
@@ -110,10 +93,7 @@ export function createCardScreen(onPick) {
         `<div class="cnd-name">${card.name}</div>` +
         `<div class="cnd-desc">${card.desc}</div>` +
         `</div>` +
-        corner(rar.color, 'top:-2px;left:-2px') +
-        corner(rar.color, 'top:-2px;right:-2px') +
-        corner(rar.color, 'bottom:-2px;left:-2px') +
-        corner(rar.color, 'bottom:-2px;right:-2px');
+        cornersHtml(rar.color);
 
       el.addEventListener('pointerdown', (e) => {
         e.preventDefault();
@@ -138,10 +118,6 @@ export function createCardScreen(onPick) {
     strip.appendChild(later);
 
     strip.style.display = 'flex';
-  }
-
-  function corner(color, pos) {
-    return `<div class="cnd-corner" style="${pos};background:${color};box-shadow:0 0 4px ${color}"></div>`;
   }
 
   return { show, hide, isOpen: () => strip.style.display !== 'none' };

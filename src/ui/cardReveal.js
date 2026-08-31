@@ -6,6 +6,7 @@
 // oyun sırasında okunabilir.
 
 import { CARDS, RARITY } from '../data/cards.js';
+import { ensureFrameCss, frameStyle, cornersHtml } from './rarityFrame.js';
 
 const SHOW_T = 2.4; // saniye — animasyon süresi (kuyruk bunun bitişini bekler)
 
@@ -19,6 +20,7 @@ const CSS = `
 }`;
 
 export function createCardReveal() {
+  ensureFrameCss(); // nadirlik çerçevesi keyframe'leri (rarityFrame.js — üç kart UI'ı ortak)
   const style = document.createElement('style');
   style.textContent = CSS;
   document.head.appendChild(style);
@@ -41,28 +43,41 @@ export function createCardReveal() {
     }
     const rar = RARITY[card.rarity];
 
+    // Dış sarmalayıcı = nadirlik çerçevesi (rarityFrame.js: padding'li degrade
+    // kenarlık deseni), iç kart = RARITY.bg zemini + metin. 3B dönüş (card-reveal)
+    // sarmalayıcıda; destansının shimmer/glow'u aynı animation listesine eklenir —
+    // farklı özellikleri (background-position / box-shadow) sürdükleri için çakışmaz.
     const el = document.createElement('div');
-    el.innerHTML =
+    const inner = document.createElement('div');
+    inner.innerHTML =
       `<div style="font:bold clamp(11px, 1.1vw, 15px) monospace;letter-spacing:3px;color:${rar.color};margin-bottom:8px">YANKI KARTI</div>` +
       `<div style="font:bold clamp(20px, 2.4vw, 32px) Georgia,serif;letter-spacing:0.5px">${card.name}</div>` +
       `<div style="font:clamp(15px, 1.7vw, 22px) sans-serif;opacity:0.88;margin-top:8px;line-height:1.45">${card.desc}</div>`;
-    Object.assign(el.style, {
+    Object.assign(inner.style, {
+      borderRadius: '9px',
+      padding: 'clamp(16px, 1.6vw, 24px) clamp(14px, 1.4vw, 20px)',
+      textAlign: 'center',
+      color: '#efe6d5',
+      // arka plan da nadirlik rengiyle tonlu (cards.js RARITY.bg) + tepe parıltısı
+      background: `radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.07), transparent 55%), ${rar.bg}`,
+      border: '1px solid rgba(255,255,255,0.09)',
+    });
+    el.appendChild(inner);
+    if (rar.key === 'epic') el.insertAdjacentHTML('beforeend', cornersHtml(rar.color));
+
+    const fs = frameStyle(rar.key, rar.color);
+    Object.assign(el.style, fs, {
       position: 'fixed',
       left: '50%',
       // Level-up kart şeridiyle (cardScreen .cnd-strip) aynı hiza: ekranın TEPESİ.
       // transform artık dikeyde ortalamıyor (translate Y=0) — top kartın üst kenarı.
       top: 'calc(30px + env(safe-area-inset-top, 0px))',
       width: 'clamp(210px, 32vw, 400px)', // telefonda küçülmesin, tablette büyüsün
-      padding: 'clamp(16px, 1.6vw, 24px) clamp(14px, 1.4vw, 20px)',
+      padding: '3px', // degrade kenarlık kalınlığı
       borderRadius: '12px',
-      textAlign: 'center',
-      color: '#efe6d5',
-      background: rar.bg, // arka plan da nadirlik rengiyle tonlu (cards.js RARITY.bg)
-      border: `2px solid ${rar.color}`,
-      boxShadow: `0 0 28px ${rar.color}88, 0 8px 26px #000c`,
       pointerEvents: 'none',
       zIndex: '28',
-      animation: `card-reveal ${SHOW_T}s ease-in-out forwards`,
+      animation: `card-reveal ${SHOW_T}s ease-in-out forwards` + (fs.animation ? ', ' + fs.animation : ''),
     });
     // animationend bazen (sekme arka plana düşünce) gelmeyebilir — zamanlayıcı sigortası
     let done = false;
