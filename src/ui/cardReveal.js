@@ -11,11 +11,11 @@ const SHOW_T = 2.4; // saniye — animasyon süresi (kuyruk bunun bitişini bekl
 
 const CSS = `
 @keyframes card-reveal {
-  0%   { transform: translate(-50%,-50%) perspective(900px) rotateY(0deg) scale(0.15); opacity: 0; }
+  0%   { transform: translate(-50%,0) perspective(900px) rotateY(0deg) scale(0.15); opacity: 0; }
   25%  { opacity: 1; }
-  55%  { transform: translate(-50%,-50%) perspective(900px) rotateY(720deg) scale(1); opacity: 1; }
-  75%  { transform: translate(-50%,-50%) perspective(900px) rotateY(720deg) scale(1); opacity: 1; }
-  100% { transform: translate(-50%,-62%) perspective(900px) rotateY(720deg) scale(1.08); opacity: 0; }
+  55%  { transform: translate(-50%,0) perspective(900px) rotateY(720deg) scale(1); opacity: 1; }
+  75%  { transform: translate(-50%,0) perspective(900px) rotateY(720deg) scale(1); opacity: 1; }
+  100% { transform: translate(-50%,-14%) perspective(900px) rotateY(720deg) scale(1.08); opacity: 0; }
 }`;
 
 export function createCardReveal() {
@@ -49,7 +49,9 @@ export function createCardReveal() {
     Object.assign(el.style, {
       position: 'fixed',
       left: '50%',
-      top: 'calc(30% + env(safe-area-inset-top, 0px))', // ekranın üst kısmı (kart şeridinin altı)
+      // Level-up kart şeridiyle (cardScreen .cnd-strip) aynı hiza: ekranın TEPESİ.
+      // transform artık dikeyde ortalamıyor (translate Y=0) — top kartın üst kenarı.
+      top: 'calc(30px + env(safe-area-inset-top, 0px))',
       width: 'clamp(210px, 32vw, 400px)', // telefonda küçülmesin, tablette büyüsün
       padding: 'clamp(16px, 1.6vw, 24px) clamp(14px, 1.4vw, 20px)',
       borderRadius: '12px',
