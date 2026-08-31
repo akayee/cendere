@@ -16,6 +16,14 @@ function setup() {
 }
 
 describe('combatSystem', () => {
+  it('taban zırh: her sınıf classes.js armor değeriyle doğar (pickup/kart üstüne ekler)', () => {
+    const { world, cx, cy } = setup();
+    for (const cls of Object.values(CLASSES)) {
+      const p = createPlayer(world, cls.id, cx + 100, cy + 100);
+      expect(p.combat.mods.armor).toBe(cls.armor ?? 0);
+    }
+  });
+
   it('otomatik saldırı menzildeki moba hasar verir ve mob saldırgana kilitlenir', () => {
     const { world, player, cx, cy } = setup();
     const mob = createMob(world, 'slime', cx + 15, cy);

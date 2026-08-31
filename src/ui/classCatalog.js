@@ -51,7 +51,8 @@ function rowHtml(cls, selectedId) {
     `<div class="chs-img" style="background:url('pack/Actor/Characters/${cls.charFolder}/SeparateAnim/Idle.png') 0 0 no-repeat;background-size:256px 64px"></div>` +
     `<div class="chs-info">` +
     `<div class="chs-name">${cls.name}${cls.id === selectedId ? '<span class="tag">SEÇİLİ</span>' : ''}</div>` +
-    `<div class="chs-stats">❤ ${cls.hp} · 👢 SPEED ${cls.speed}</div>` +
+    // Stat seti karoselle birebir aynı sıra/simge dili (❤ CAN · ⚔ AD · 🛡 ARMOR · 👢 SPEED)
+    `<div class="chs-stats">❤&nbsp;${cls.hp} · ⚔&nbsp;AD&nbsp;${cls.auto.damage} · 🛡&nbsp;ARMOR&nbsp;${cls.armor ?? 0} · 👢&nbsp;SPEED&nbsp;${cls.speed}</div>` +
     `<div class="chs-box"><div class="chs-line">⚔ ${f.autoName} <span class="sub">(otomatik)</span></div>` +
     `<div class="chs-desc">${f.autoDesc}</div></div>` +
     `<div class="chs-box skill"><div class="chs-line"><img src="${f.skillIcon}" alt=""> ${f.skillName} <span class="sub">(beceri)</span></div>` +

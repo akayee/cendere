@@ -4,6 +4,7 @@ import { createPlayer, createMob, createResource, createLootBag } from '../src/s
 import { step } from '../src/sim/pipeline.js';
 import { applyDamage } from '../src/sim/systems/combatSystem.js';
 import { ECON, COMBAT } from '../src/data/balance.js';
+import { CLASSES } from '../src/data/classes.js';
 
 function setup(classId = 'cengaver') {
   const world = createWorld(999);
@@ -47,11 +48,11 @@ describe('gatherSystem — temasla anında toplama', () => {
     expect(player.gather.stats.atk).toBe(1);
   });
 
-  it('armor pickup: anında +1 zırh', () => {
+  it('armor pickup: anında +1 zırh (sınıfın taban zırhı üstüne)', () => {
     const { world, player, cx, cy } = setup('ocakci');
     createResource(world, 'armor', cx + 8, cy);
     step(world);
-    expect(player.combat.mods.armor).toBe(ECON.ARMOR_PER_PICKUP);
+    expect(player.combat.mods.armor).toBe(CLASSES.ocakci.armor + ECON.ARMOR_PER_PICKUP);
     expect(player.gather.stats.armor).toBe(1);
   });
 
@@ -130,7 +131,7 @@ describe('gatherSystem — temasla anında toplama', () => {
     const a = setup('cengaver');
     createResource(a.world, 'armor', a.cx + 8, a.cy);
     step(a.world);
-    expect(a.player.combat.mods.armor).toBe(ECON.ARMOR_PER_PICKUP * 2);
+    expect(a.player.combat.mods.armor).toBe(CLASSES.cengaver.armor + ECON.ARMOR_PER_PICKUP * 2);
 
     // Nişancı: hasar ×1.04²
     const b = setup('nisanci');
@@ -286,8 +287,8 @@ describe('eşik ödülleri (milestone) — her 5 pickup\'ta bir kademe (5/10/15/
     player.gather.stats.armor = ECON.MILESTONE_STEP - 1;
     createResource(world, 'armor', cx + 8, cy);
     step(world);
-    // 5. pickup: +1 pickup zırhı + 1. kademe bonusu
-    expect(player.combat.mods.armor).toBe(ECON.ARMOR_PER_PICKUP + ECON.MILESTONE_ARMOR_ADDS[0]);
+    // 5. pickup: taban zırh + 1 pickup zırhı + 1. kademe bonusu
+    expect(player.combat.mods.armor).toBe(CLASSES.ocakci.armor + ECON.ARMOR_PER_PICKUP + ECON.MILESTONE_ARMOR_ADDS[0]);
     expect(player.render.auras).toEqual([{ type: 'armor', tier: 1 }]);
   });
 

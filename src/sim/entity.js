@@ -23,7 +23,8 @@ export function createPlayer(world, classId, x, y, opts = {}) {
       // Kartlar bu değerleri değiştirir — sınıf verisinin KOPYASI (paylaşım yasak)
       auto: { ...cls.auto },
       skill: { ...cls.skill },
-      mods: { armor: 0, crit: 0, lifesteal: 0, regen: 0, killMaxHp: 0 },
+      // armor: sınıfın TABAN zırhıyla başlar (classes.js); pickup/kart üstüne ekler
+      mods: { armor: cls.armor ?? 0, crit: 0, lifesteal: 0, regen: 0, killMaxHp: 0 },
       autoCd: 0,
       skillCd: 0,
       swingT: 0,

@@ -1,4 +1,11 @@
 // Karakter sınıfları (PLAN §5). Dört sınıf da oynanabilir (M6 + Kementçi).
+// armor: taban zırh — spawn'da combat.mods.armor'a yazılır (entity.js); pickup/kart
+//   zırhı üstüne eklenir. Değerler MÜTEVAZI (UI'da stat okunsun, denge kaymasın):
+//   cengaver/ocakci/kementci 1 (dayanıklı kimlikler), nisanci 0 (cam top — kimliği mesafe).
+//   Cengâver'in tank kimliğini zaten ARMOR pickup uzmanlığı (×2) taşıyor.
+//   balance.mjs 40 maç (aynı seed'ler), galibiyet cengaver/nisanci/ocakci/kementci:
+//   taban yok 25/7/5/3 · cengaver 2 zırhla 28/4/7/1 (baskın sınıf daha da güçlendi,
+//   geri çekildi) · bu haliyle (1/0/1/1) 26/6/4/4 — önceki dağılımın bandında.
 // pickupBonus: uzmanlık — o türdeki pickup'ın etkisini ×2 alır (temas toplaması)
 // auto.type: 'melee' (yay içi alan) | 'projectile' (mermi — engel arkasına işlemez)
 // skill.type: 'dash' (ileri atılma+hasar) | 'homingShot' (şaşmaz ok: hedef takipli, kaçırmaz)
@@ -12,6 +19,7 @@ export const CLASSES = {
     speed: 95,
     radius: 5,
     hp: 105,
+    armor: 1, // tank kimliği; 2 denendi ama zaten baskın sınıfı daha da güçlendirdi (aşağıdaki balans notu)
     sprite: 'ninja',
     charFolder: 'BlueNinja', // lobi karakter önizlemesi
     botSprites: ['ninjaRed', 'ninjaGray'],
@@ -40,6 +48,7 @@ export const CLASSES = {
     speed: 93, // kite bedava değil: Cengâver (95) açık alanda yavaşça kapatır
     radius: 5,
     hp: 80,
+    armor: 0, // cam top: savunması mesafesi, zırhı yok
     sprite: 'hunter',
     charFolder: 'Hunter',
     botSprites: ['camoGreen', 'ninjaGreen'],
@@ -62,6 +71,7 @@ export const CLASSES = {
     speed: 91,
     radius: 5,
     hp: 115,
+    armor: 1, // 115 hp'li dayanıklı büyücü: hafif taban zırh
     sprite: 'sorcerer',
     charFolder: 'SorcererOrange',
     botSprites: ['mageBlack', 'ninjaDark'],
@@ -83,6 +93,7 @@ export const CLASSES = {
     speed: 94, // hız uzmanının tabanı da çevik — ama Cengâver'i (95) geçmez
     radius: 5,
     hp: 95, // Nişancı (80) ile Ocakçı (115) arası: kontrolcü ama cam değil
+    armor: 1, // "cam değil" kimliğinin stat karşılığı: hafif taban zırh
     sprite: 'kementci',
     charFolder: 'GladiatorBlue', // retiarius teması: ağ/kement atan gladyatör
     botSprites: ['fighterRed', 'maskedNinja'],

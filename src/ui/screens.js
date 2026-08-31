@@ -33,7 +33,10 @@ function classCardHtml(cls) {
     `background:url('pack/Actor/Characters/${cls.charFolder}/SeparateAnim/Idle.png') 0 0 no-repeat;` +
     `background-size:320px 80px"></div>` +
     `<div style="font:bold 22px Georgia,serif">${cls.name}</div>` +
-    `<div style="font:bold 12px monospace;color:#8cd9ff;margin:5px 0 10px">❤ ${cls.hp} · 👢 SPEED ${cls.speed}</div>` +
+    // Stat seti (katalogla tutarlı sıra/simge): ❤ CAN · ⚔ AD · 🛡 ARMOR · 👢 SPEED.
+    // Stat içi &nbsp;: dar kartta satır ancak statlar ARASINDA kırılır
+    `<div style="font:bold 12px monospace;color:#8cd9ff;margin:5px 0 10px;line-height:1.6">` +
+    `❤&nbsp;${cls.hp} · ⚔&nbsp;AD&nbsp;${cls.auto.damage} · 🛡&nbsp;ARMOR&nbsp;${cls.armor ?? 0} · 👢&nbsp;SPEED&nbsp;${cls.speed}</div>` +
     `<div style="text-align:left;background:rgba(0,0,0,0.25);border-radius:6px;padding:7px 10px;margin-bottom:7px">` +
     `<div style="font:bold 12px sans-serif;color:#e8dcb8">⚔ ${f.autoName} <span style="opacity:0.6;font-weight:normal">(otomatik)</span></div>` +
     `<div style="font:11px sans-serif;opacity:0.75;line-height:1.4;margin-top:2px">${f.autoDesc}</div>` +
