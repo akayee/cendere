@@ -20,10 +20,13 @@
 //   havuzu ve Yankı Kartı, build'de zaten olan unique kartı ATLAR.
 //   catal_ok/cifte_kor/cifte_zipkin/cifte_vurus unique DEĞİLDİR: +1 mermi/vuruş istiflenir.
 
+// bg: nadirliğin KART ARKA PLANI (koyu, okunur ton) — tüm kart UI'ları
+// (cardReveal / cardScreen / cardCatalog) aynı gradyanı kullanır ki nadirlik
+// yalnız çerçeveden değil zeminden de okunsun.
 export const RARITY = {
-  common: { key: 'common', name: 'Sıradan', color: '#c9d1d9' },
-  rare: { key: 'rare', name: 'Nadir', color: '#c07ef5' },
-  epic: { key: 'epic', name: 'Destansı', color: '#ffb545' },
+  common: { key: 'common', name: 'Sıradan', color: '#c9d1d9', bg: 'linear-gradient(170deg, #3d434c, #1b1e24 65%)' },
+  rare: { key: 'rare', name: 'Nadir', color: '#c07ef5', bg: 'linear-gradient(170deg, #4d2775, #1d1030 65%)' },
+  epic: { key: 'epic', name: 'Destansı', color: '#ffb545', bg: 'linear-gradient(170deg, #7a4d10, #2a1a06 65%)' },
 };
 
 // Nadirlik ağırlıkları LEVELE bağlıdır (PLAN §6: seviye yükseldikçe nadir şansı

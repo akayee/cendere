@@ -57,7 +57,7 @@ export function createCardReveal() {
       borderRadius: '12px',
       textAlign: 'center',
       color: '#efe6d5',
-      background: 'linear-gradient(170deg, #2b2749, #171430)',
+      background: rar.bg, // arka plan da nadirlik rengiyle tonlu (cards.js RARITY.bg)
       border: `2px solid ${rar.color}`,
       boxShadow: `0 0 28px ${rar.color}88, 0 8px 26px #000c`,
       pointerEvents: 'none',

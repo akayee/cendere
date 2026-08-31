@@ -21,11 +21,9 @@ const CSS = `
 .cnd-card { position: relative; width: clamp(120px, 21vw, 260px); border-radius: 10px; padding: 3px;
   cursor: pointer; pointer-events: auto; animation: card-in 0.22s ease-out backwards; }
 .cnd-card:active { transform: scale(0.96); }
+/* Zemin gradyanı inline basılır (nadirliğe göre, RARITY.bg) — burada yalnız ortak kabuk */
 .cnd-card-inner { border-radius: 8px; padding: clamp(7px, 0.8vw, 12px) clamp(7px, 0.8vw, 12px) clamp(9px, 1vw, 14px);
   text-align: center; color: #efe6d5;
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.07), transparent 55%),
-    linear-gradient(170deg, #2b2749, #171430 60%, #12101f);
   border: 1px solid rgba(255,255,255,0.09); }
 .cnd-rar { font: bold clamp(9px, 1vw, 13px) monospace; letter-spacing: 2px; margin-bottom: 4px; }
 .cnd-icon { width: clamp(40px, 4.5vw, 60px); height: clamp(40px, 4.5vw, 60px); margin: 2px auto;
@@ -106,7 +104,7 @@ export function createCardScreen(onPick) {
       el.style.animationDelay = idx * 0.06 + 's';
 
       el.innerHTML =
-        `<div class="cnd-card-inner">` +
+        `<div class="cnd-card-inner" style="background:radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.07), transparent 55%), ${rar.bg}">` +
         `<div class="cnd-rar" style="color:${rar.color}">◆ ${rar.name.toUpperCase()} ◆</div>` +
         `<div class="cnd-icon" style="box-shadow:inset 0 0 8px ${rar.color}44">${iconHtml(card.icon)}</div>` +
         `<div class="cnd-name">${card.name}</div>` +
